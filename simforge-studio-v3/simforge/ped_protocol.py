@@ -341,11 +341,10 @@ PFIELDS = [
     PField("stepLossFunctionFlags_u8", T("Détection de pas perdus (drapeaux)"), group=G_GEN),
     PField("endstopDetectionThreshold_u8", T("Seuil de détection des butées"), lo=10, hi=50, unit="%",
            group=G_SERVO,
-           tip=T("Sert à la mise à zéro (démarrage, réveil) : le chariot avance doucement jusqu'à ce que le courant "
-                 "du servo dépasse ce seuil, en % de son courant. Le firmware y place alors la butée.\n"
-                 "Trop bas : un frottement de la mécanique est pris pour une butée, la course trouvée est trop "
-                 "courte et la pédale se bloque sur cette fausse limite. Trop haut : le servo pousse fort contre la "
-                 "butée. Le firmware limite la valeur entre 10 et 50 % ; pas de réglage automatique.")),
+           tip=T("Prévu pour la mise à zéro (démarrage, réveil) : le chariot avance jusqu'à ce que le courant du "
+                 "servo dépasse ce seuil, en % de son courant, et le firmware y place la butée (10 à 50 %).\n"
+                 "Sans effet avec le firmware fourni (ChrGri, commit 7564dad) : StepperWithLimits.cpp ignore la "
+                 "valeur reçue et garde toujours 30 %.")),
     PField("debugFlags0_u8", T("Drapeaux de débogage"), group=G_GEN),
 ]
 PBY = {f.name: f for f in PFIELDS}

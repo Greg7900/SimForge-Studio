@@ -1967,6 +1967,6 @@ EN = {
         'on',
     'inactive':
         'off',
-    "Sert à la mise à zéro (démarrage, réveil) : le chariot avance doucement jusqu'à ce que le courant du servo dépasse ce seuil, en % de son courant. Le firmware y place alors la butée.\nTrop bas : un frottement de la mécanique est pris pour une butée, la course trouvée est trop courte et la pédale se bloque sur cette fausse limite. Trop haut : le servo pousse fort contre la butée. Le firmware limite la valeur entre 10 et 50 % ; pas de réglage automatique.":
-        'Used for homing (power-up, wake-up): the sled moves slowly until the servo current exceeds this threshold, in % of its current. The firmware puts the endstop there.\nToo low: friction in the mechanism is taken for an endstop, the travel found is too short and the pedal locks on that false limit. Too high: the servo pushes hard against the endstop. The firmware limits the value to 10–50 %; there is no automatic setting.',
+    "Prévu pour la mise à zéro (démarrage, réveil) : le chariot avance jusqu'à ce que le courant du servo dépasse ce seuil, en % de son courant, et le firmware y place la butée (10 à 50 %).\nSans effet avec le firmware fourni (ChrGri, commit 7564dad) : StepperWithLimits.cpp ignore la valeur reçue et garde toujours 30 %.":
+        'Meant for homing (power-up, wake-up): the sled moves until the servo current exceeds this threshold, in % of its current, and the firmware puts the endstop there (10 to 50 %).\nNo effect with the bundled firmware (ChrGri, commit 7564dad): StepperWithLimits.cpp ignores the received value and always keeps 30 %.',
 }
