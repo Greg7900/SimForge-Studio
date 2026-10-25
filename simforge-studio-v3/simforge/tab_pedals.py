@@ -619,12 +619,18 @@ class PedalsTab(QWidget):
         self.b_restart = QPushButton(T("Redémarrer"))
         self.b_restart.setToolTip(T("Redémarre la pédale (comme débrancher/rebrancher son alimentation USB)."))
         self.b_restart.clicked.connect(self.restart)
+        self.b_alarm = QPushButton(T("Alarmes servo"))
+        self.b_alarm.setToolTip(T("Le servo peut se mettre en alarme (surtension…) et bloquer la pédale sans que la "
+                                  "carte le voie : LED verte, aucune erreur. Ce bouton écrit l'historique des alarmes "
+                                  "dans les messages puis les efface, ce qui relance le servo sans redémarrer. La "
+                                  "pédale se fige 1 s ; les modifications en attente ne sont pas envoyées."))
+        self.b_alarm.clicked.connect(self.clear_alarms)
         self.b_info = QPushButton(T("Infos firmware"))
         self.b_info.setToolTip(T("Demande à la pédale d'écrire ses informations dans les messages."))
         self.b_info.clicked.connect(lambda: self.m.action(self.port, T("infos firmware"),
                                                          systemAction_u8=PP.ACT_PRINT_INFO))
         for i, b in enumerate((self.b_beep, self.b_read, self.b_exp, self.b_imp, self.b_wake, self.b_restart,
-                               self.b_info)):
+                               self.b_alarm, self.b_info)):
             g.addWidget(b, i // 2, i % 2)
         l.addLayout(g)
         ll.addWidget(c)
@@ -891,7 +897,7 @@ class PedalsTab(QWidget):
             self.m.request_config(port)
 
     def _enable(self, on):
-        for w in (self.b_apply, self.b_save, self.b_read, self.b_exp, self.b_imp, self.b_abs,
+        for w in (self.b_apply, self.b_save, self.b_read, self.b_exp, self.b_imp, self.b_abs, self.b_alarm,
                   self.diag_on):
             w.setEnabled(on)
         for r in self.rows.values():
@@ -998,6 +1004,11 @@ class PedalsTab(QWidget):
             return
         self._last_line = line
         self.log.appendPlainText(line)
+        # explication des messages du servo, une fois par série (l'historique répète souvent la même alarme)
+        h = PP.servo_hint(line)
+        if h and h != getattr(self, "_last_hint", None):
+            self.log.appendPlainText("  → " + h)
+        self._last_hint = h
 
     def _kin_text(self):
         ang = self.kin.angles()
@@ -1058,6 +1069,13 @@ class PedalsTab(QWidget):
         if self.port and QMessageBox.question(self, T("Redémarrer"), T("Redémarrer la pédale ? Les réglages non "
                                                                      "enregistrés seront perdus.")) == QMessageBox.Yes:
             self.m.action(self.port, T("redémarrage de la pédale"), systemAction_u8=PP.ACT_RESTART)
+
+    def clear_alarms(self):
+        if not self.port or self.cfg is None:
+            return
+        err = self.m.send_config(self.port, self.cfg, False, clear_alarms=True)   # configuration de la pédale
+        if err:
+            QMessageBox.warning(self, T("Pédale"), T("Réglages refusés (la pédale les ignorerait) : {e}").format(e=err))
 
     def test_abs(self):
         if not self.port:

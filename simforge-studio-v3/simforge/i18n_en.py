@@ -2007,4 +2007,30 @@ EN = {
         'Cannot write: {e}',
     "Lecture DirectInput, comme un jeu. Chaque pédale est une manette séparée (« FFB_Pedal_Brake », « FFB_Pedal_Throttle », « FFB_Pedal_Clutch ») qui n'apparaît que si son port USB natif de l'ESP32-S3 est branché : le port série (puce CH343) sert seulement aux réglages. « Pas » = variation entre deux lectures (≈100 Hz) : au repos il doit être nul ou de quelques unités.":
         'DirectInput reading, like a game. Each pedal is a separate controller (“FFB_Pedal_Brake”, “FFB_Pedal_Throttle”, “FFB_Pedal_Clutch”) that only shows up when the ESP32-S3 native USB port is plugged in: the serial port (CH343 chip) is only used for settings. “Step” = change between two reads (≈100 Hz): at rest it should be zero or a few units.',
+    "surtension du servo : l'énergie rendue quand la pédale remonte n'est pas évacuée. Voir "
+    "« Énergie de freinage du servo » (onglet Général) et la tension dans « Diagnostic servo ».":
+        "servo overvoltage: the energy returned when the pedal comes back up is not dissipated. See "
+        "\"Servo braking energy\" (General tab) and the voltage in \"Servo diagnostics\".",
+    'sous-tension du servo : alimentation trop faible ou coupée un instant.':
+        'servo undervoltage: power supply too weak or briefly cut.',
+    'surintensité dans le servo : blocage mécanique ou câblage moteur.':
+        'servo overcurrent: mechanical jam or motor wiring.',
+    'codeur du servo : connecteur ou servo défectueux.':
+        'servo encoder: faulty connector or servo.',
+    'la carte ne parle plus au servo : câble entre la carte et le servo, ou servo hors tension.':
+        'the board no longer talks to the servo: cable between board and servo, or servo powered off.',
+    "courant trop fort pendant 15 s : moteur coupé jusqu'au redémarrage de la pédale.":
+        'current too high for 15 s: motor disabled until the pedal is restarted.',
+    'servo en veille (LED rouge) : un appui franc sur la pédale le réveille.':
+        'servo asleep (red LED): a firm press on the pedal wakes it up.',
+    'lecture et effacement des alarmes du servo':
+        'reading and clearing servo alarms',
+    'Alarmes servo':
+        'Servo alarms',
+    "Le servo peut se mettre en alarme (surtension…) et bloquer la pédale sans que la carte le voie : LED verte, "
+    "aucune erreur. Ce bouton écrit l'historique des alarmes dans les messages puis les efface, ce qui relance le "
+    "servo sans redémarrer. La pédale se fige 1 s ; les modifications en attente ne sont pas envoyées.":
+        "The servo can go into alarm (overvoltage…) and lock the pedal without the board noticing: green LED, no "
+        "error. This button writes the alarm history to the messages, then clears the alarms, which restarts the "
+        "servo without a reboot. The pedal freezes for 1 s; pending changes are not sent.",
 }

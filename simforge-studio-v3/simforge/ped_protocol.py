@@ -182,6 +182,8 @@ def build_action(tag=0, **kw) -> bytes:
 # debugFlags0_u8 (firmware Main.cpp) : état détaillé envoyé en continu, une trame sur 4
 DBG_EXT_STATE = 64
 DBG_EXT_DECIMATED = 4
+# commande ponctuelle : efface les alarmes du servo iSV57 et écrit leur historique (le firmware remet le bit à 0)
+DBG_CLEAR_ALARMS = 16
 
 # actions système (PedalEnum.h : PedalSystemAction)
 ACT_RESTART = 2
@@ -194,6 +196,25 @@ PEDAL_NAMES = {0: T("Embrayage"), 1: T("Frein"), 2: T("Accélérateur"), 3: T("E
                4: T("Non assignée")}
 SERVO_STATUS = {0: T("servo non connecté"), 1: T("servo connecté"), 2: T("servo en veille"), 3: T("servo arrêté")}
 PEDAL_STATUS = {0: T("normal"), 1: T("palonnier"), 2: T("palonnier + frein")}
+# messages du firmware sur le servo (Main.cpp, StepperWithLimits.cpp, alarmes iSV57 décodées par
+# isv57communication.cpp) : explication affichée sous la ligne
+SERVO_MSG_HINTS = (
+    ("Overvoltage", T("surtension du servo : l'énergie rendue quand la pédale remonte n'est pas évacuée. Voir "
+                      "« Énergie de freinage du servo » (onglet Général) et la tension dans « Diagnostic servo ».")),
+    ("Undervoltage", T("sous-tension du servo : alimentation trop faible ou coupée un instant.")),
+    ("Overcurrent", T("surintensité dans le servo : blocage mécanique ou câblage moteur.")),
+    ("Encoder", T("codeur du servo : connecteur ou servo défectueux.")),
+    ("Servo communication lost", T("la carte ne parle plus au servo : câble entre la carte et le servo, ou servo "
+                                   "hors tension.")),
+    ("overcurrent protection", T("courant trop fort pendant 15 s : moteur coupé jusqu'au redémarrage de la pédale.")),
+    ("idle timeout", T("servo en veille (LED rouge) : un appui franc sur la pédale le réveille.")),
+)
+
+
+def servo_hint(line: str):
+    return next((h for k, h in SERVO_MSG_HINTS if k in line), None)
+
+
 ERROR_CODES = {12: T("le servo ne répond plus (liaison série du servo)"),
                101: T("ESP-NOW : charge utile invalide"), 102: T("ESP-NOW : version différente"),
                103: T("ESP-NOW : CRC faux"), 111: T("ESP-NOW : charge utile invalide"),

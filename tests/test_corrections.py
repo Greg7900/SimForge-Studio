@@ -152,3 +152,29 @@ def test_import_profil_volant_lecture_seule_ignoree(qapp):
     tab.apply_profile({ro: "0.1", "chemin.inconnu": "1"}, "profil.json")
     txt = tab.import_lbl.text()
     assert ": 1" in txt.splitlines()[-1]        # seul « chemin.inconnu » est non géré
+
+
+def test_alarmes_servo_bit_ponctuel(qapp):
+    """Le bit « effacer les alarmes » ne part qu'avec la commande dédiée, jamais avec un réglage ou un enregistrement."""
+    from simforge.ped_device import PedalManager
+    mgr = PedalManager()
+    sent = []
+    mgr.links["COM8"] = SimpleNamespace(send=lambda b, what: sent.append(b), info=SimpleNamespace(tag=1))
+    c = PP.default_config()
+    c["debugFlags0_u8"] = PP.DBG_CLEAR_ALARMS | PP.DBG_EXT_STATE      # relu d'une pédale qui l'a gardé
+    assert mgr.send_config("COM8", c, True) == ""
+    assert mgr.send_config("COM8", c, False, clear_alarms=True) == ""
+    flags = [PP.Parser().feed(b)[0].data["debugFlags0_u8"] for b in sent]
+    assert flags == [PP.DBG_EXT_STATE, PP.DBG_EXT_STATE | PP.DBG_CLEAR_ALARMS]
+
+
+def test_alarmes_servo_expliquees():
+    from simforge.ped_device import FakePedalPort
+    fake = FakePedalPort(2)
+    fake.write(PP.build_config(dict(fake.cfg, debugFlags0_u8=PP.DBG_CLEAR_ALARMS), store=False, tag=2))
+    p = PP.Parser()
+    p.feed(fake.read())
+    hist = [ln for ln in p.lines if "alarm history:" in ln]
+    assert hist and PP.servo_hint(hist[0]) == dict(PP.SERVO_MSG_HINTS)["Overvoltage"]
+    assert fake.cfg["debugFlags0_u8"] & PP.DBG_CLEAR_ALARMS == 0          # remis à 0, comme le firmware
+    assert PP.servo_hint("Servo communication lost!") and PP.servo_hint("Setup end") is None

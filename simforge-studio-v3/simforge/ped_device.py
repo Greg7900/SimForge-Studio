@@ -144,6 +144,10 @@ class FakePedalPort:
             elif f.ptype == PP.T_CONFIG and f.data:
                 if not PP.plausible(f.data):
                     self.cfg = dict(f.data)
+                    if self.cfg["debugFlags0_u8"] & PP.DBG_CLEAR_ALARMS:
+                        self.cfg["debugFlags0_u8"] &= ~PP.DBG_CLEAR_ALARMS & 0xFF
+                        self.out += (b"Set clear alarm history flag\r\nClearing all servo alarms.\r\n\r\n"
+                                     b"iSV57 alarm history: Alarm Idx: 0,    Alarm Code: C0 --> Overvoltage\n\r\n\r\n")
                     # comme le firmware : une pédale assignée garde son rôle, sauf configuration enregistrée
                     if f.store or self.tag > 2:
                         self.tag = self.cfg["pedalType_u8"]
@@ -406,7 +410,7 @@ class PedalManager(QObject):
         if l:
             l.send(PP.build_action(tag=l.info.tag or 0, returnPedalConfig_u8=1))
 
-    def send_config(self, port, cfg: dict, store: bool):
+    def send_config(self, port, cfg: dict, store: bool, clear_alarms=False):
         l = self.links.get(port)
         if not l:
             return T("pédale non connectée")
@@ -414,10 +418,17 @@ class PedalManager(QObject):
         if errs:
             return "; ".join(errs)
         c = dict(cfg)
-        l.send(PP.build_config(c, store=store, tag=l.info.tag or 0),
-               T("configuration mémorisée") if store else T("configuration appliquée"))
-        # relecture pour confirmer ce que la pédale a retenu
-        QTimer.singleShot(400, lambda: self.request_config(port))
+        # le bit « effacer les alarmes » ne part qu'avec la commande dédiée : enregistré, il figerait la pédale 1 s
+        # à chaque démarrage et à chaque réglage
+        c["debugFlags0_u8"] &= ~PP.DBG_CLEAR_ALARMS & 0xFF
+        if clear_alarms:
+            c["debugFlags0_u8"] |= PP.DBG_CLEAR_ALARMS
+            what = T("lecture et effacement des alarmes du servo")
+        else:
+            what = T("configuration mémorisée") if store else T("configuration appliquée")
+        l.send(PP.build_config(c, store=store, tag=l.info.tag or 0), what)
+        # relecture pour confirmer ce que la pédale a retenu (l'effacement des alarmes la fige 1 s)
+        QTimer.singleShot(1600 if clear_alarms else 400, lambda: self.request_config(port))
         return ""
 
     def action(self, port, what="", **kw):
