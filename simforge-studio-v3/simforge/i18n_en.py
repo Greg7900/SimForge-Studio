@@ -1867,10 +1867,14 @@ EN = {
         'Exponential',
     'Aucun':
         'None',
-    'IMM adaptatif (maintien/mouvement) — conseillé':
-        'IMM adaptive (hold/move) — recommended',
-    "IMM adaptatif : lisse fort quand le pied tient la pédale immobile, réagit vite quand il bouge. C'est le filtre fait contre la vibration à faible force (doc ChrGri : IMM_Loadcell_Filter.md).":
-        'IMM adaptive: smooths strongly while the foot holds the pedal still, reacts fast when it moves. It is the filter made against vibration at light force (ChrGri docs: IMM_Loadcell_Filter.md).',
+    'IMM adaptatif (maintien/mouvement)':
+        'IMM adaptive (hold/move)',
+    "IMM adaptatif : lisse fort quand le pied tient la pédale immobile, réagit vite quand il bouge (doc ChrGri : "
+    "IMM_Loadcell_Filter.md).\nAttention : avec le firmware actuel, ce filtre peut bloquer la pédale en position de "
+    "départ (force figée, « [IMM] k_foot=5000 » dans les messages). Si ça arrive, prends un autre filtre.":
+        "IMM adaptive: smooths strongly while the foot holds the pedal still, reacts fast when it moves (ChrGri docs: "
+        "IMM_Loadcell_Filter.md).\nWarning: with the current firmware, this filter can lock the pedal at its start "
+        "position (frozen force, \"[IMM] k_foot=5000\" in the messages). If that happens, pick another filter.",
     'Vitesse du filtre (1 = doux … 255 = rapide)':
         'Filter speed (1 = smooth … 255 = fast)',
     "Plus haut : la pédale suit plus vite le pied mais le bruit du capteur passe davantage (vibration, surtout quand la pédale bouge doucement). Plus bas : plus calme mais plus lourd.\nAvec le filtre IMM, c'est la vitesse en mouvement : 1 ≈ 5 Hz, 128 ≈ 17 Hz, 255 ≈ 60 Hz.":
@@ -1928,8 +1932,8 @@ EN = {
     "Prévu pour la mise à zéro (démarrage, réveil) : le chariot avance jusqu'à ce que le courant du servo dépasse ce seuil, en % de son courant, et le firmware y place la butée (10 à 50 %).\nSans effet avec le firmware fourni (ChrGri, commit 7564dad) : StepperWithLimits.cpp ignore la valeur reçue et garde toujours 30 %.":
         'Meant for homing (power-up, wake-up): the sled moves until the servo current exceeds this threshold, in % of its current, and the firmware puts the endstop there (10 to 50 %).\nNo effect with the bundled firmware (ChrGri, commit 7564dad): StepperWithLimits.cpp ignores the received value and always keeps 30 %.',
     # auto-test des pédales
-    "Bêta. Cherche le réglage de filtre le plus réactif qui ne fait pas vibrer la pédale : filtre IMM adaptatif, puis vitesse du filtre de 255 à 64, puis amortissement si besoin. Environ 1 à 2 min. Rien n'est enregistré dans la pédale pendant le test ; tes modifications en attente ne sont pas envoyées. Garde le pied sur la pédale et suis les consignes ; « Arrêter » remet tes réglages.":
-        'Beta. Looks for the most responsive filter setting that does not make the pedal vibrate: IMM adaptive filter, then filter speed from 255 down to 64, then damping if needed. About 1 to 2 min. Nothing is stored in the pedal during the test; your pending changes are not sent. Keep your foot on the pedal and follow the instructions; “Stop” puts your settings back.',
+    "Bêta. Cherche le réglage de filtre le plus réactif qui ne fait pas vibrer la pédale : vitesse du filtre de 255 à 64, puis amortissement si besoin. Environ 1 à 2 min. Rien n'est enregistré dans la pédale pendant le test ; tes modifications en attente ne sont pas envoyées. Garde le pied sur la pédale et suis les consignes ; « Arrêter » remet tes réglages.":
+        'Beta. Looks for the most responsive filter setting that does not make the pedal vibrate: filter speed from 255 down to 64, then damping if needed. About 1 to 2 min. Nothing is stored in the pedal during the test; your pending changes are not sent. Keep your foot on the pedal and follow the instructions; “Stop” puts your settings back.',
     "Lancer l'auto-test":
         'Start the auto-test',
     'Arrêter':
@@ -2035,4 +2039,8 @@ EN = {
         "servo without a reboot. The pedal freezes for 1 s; pending changes are not sent.",
     "le servo n'a pas pu enregistrer ses paramètres : coupe puis rallume son alimentation.":
         'the servo could not save its parameters: switch its power off and on again.',
+    "filtre IMM bloqué à sa limite : la pédale ne suit plus le pied. Prends un autre « Type de filtre du capteur "
+    "de force » (onglet Filtre).":
+        'IMM filter stuck at its limit: the pedal no longer follows the foot. Pick another "Load cell filter type" '
+        '(Filter tab).',
 }

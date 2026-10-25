@@ -1,6 +1,7 @@
 """Auto-test (bêta) des pédales : cherche le filtre et l'amortissement les plus réactifs sans oscillation.
 
-Déroulé : bruit du capteur pied posé, puis filtre IMM adaptatif et paliers de « Vitesse du filtre » de 255 à 64 ;
+Déroulé : bruit du capteur pied posé, puis paliers de « Vitesse du filtre » de 255 à 64 (filtre de la pédale, Kalman
+si elle est en IMM ou sans filtre : l'IMM du firmware peut bloquer la pédale) ;
 à chaque palier l'utilisateur appuie et relâche doucement et l'on compte les trames où le firmware signale une
 oscillation (admittance_isOscillating de l'état détaillé). Si tous les paliers oscillent, on monte l'amortissement.
 Tout est envoyé avec « Appliquer » (rien n'est mémorisé) à partir de la configuration lue au départ : les
@@ -25,7 +26,7 @@ SPEEDS = (255, 180, 128, 90, 64)        # « Vitesse du filtre », de la plus r�
 DAMPINGS = (150, 200, 250)              # « Amortissement virtuel » (%) essayés si tous les paliers oscillent
 OSC_MAX = 0.002                         # part de trames en oscillation tolérée (bruit de détection)
 MIN_TRAVEL = 15.0                       # course parcourue (%) pour qu'un palier soit valable
-IMM = 4
+KALMAN, NONE, IMM = 0, 3, 4
 
 
 class AutoTune(QWidget):
@@ -43,8 +44,8 @@ class AutoTune(QWidget):
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(8)
         warn = hint(T(
-            "Bêta. Cherche le réglage de filtre le plus réactif qui ne fait pas vibrer la pédale : filtre IMM "
-            "adaptatif, puis vitesse du filtre de 255 à 64, puis amortissement si besoin. Environ 1 à 2 min. "
+            "Bêta. Cherche le réglage de filtre le plus réactif qui ne fait pas vibrer la pédale : vitesse du "
+            "filtre de 255 à 64, puis amortissement si besoin. Environ 1 à 2 min. "
             "Rien n'est enregistré dans la pédale pendant le test ; tes modifications en attente ne sont pas "
             "envoyées. Garde le pied sur la pédale et suis les consignes ; « Arrêter » remet tes réglages."))
         warn.setStyleSheet(f"color: {C['warn']};")
@@ -123,7 +124,9 @@ class AutoTune(QWidget):
         self.results, self.final = [], None
         self.log.clear()
         damping0 = max(self.orig["virtualPedalDampingInPercent_u8"], 100)
-        self.steps = [("rest", {})] + [("speed", {"kfModelOrder_u8": IMM, "kfModelNoise_u8": s,
+        order = self.orig["kfModelOrder_u8"]
+        self.order = KALMAN if order in (NONE, IMM) else order
+        self.steps = [("rest", {})] + [("speed", {"kfModelOrder_u8": self.order, "kfModelNoise_u8": s,
                                                    "virtualPedalDampingInPercent_u8": damping0}) for s in SPEEDS]
         self.damping0 = damping0
         self._say(T("Auto-test lancé sur {p}.").format(p=self.port))
@@ -214,7 +217,7 @@ class AutoTune(QWidget):
             # tous les paliers vibrent : on garde la vitesse la plus calme et on monte l'amortissement
             for d in DAMPINGS:
                 if d > kw["virtualPedalDampingInPercent_u8"]:
-                    self.steps.append(("speed", {"kfModelOrder_u8": IMM, "kfModelNoise_u8": SPEEDS[-1],
+                    self.steps.append(("speed", {"kfModelOrder_u8": self.order, "kfModelNoise_u8": SPEEDS[-1],
                                                  "virtualPedalDampingInPercent_u8": d}))
             self._say(T("Tous les paliers vibrent : essai avec plus d'amortissement."))
         self._next()

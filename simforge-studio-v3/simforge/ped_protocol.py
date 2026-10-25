@@ -204,6 +204,8 @@ SERVO_MSG_HINTS = (
     ("Undervoltage", T("sous-tension du servo : alimentation trop faible ou coupée un instant.")),
     ("Overcurrent", T("surintensité dans le servo : blocage mécanique ou câblage moteur.")),
     ("Encoder", T("codeur du servo : connecteur ou servo défectueux.")),
+    ("k_foot=5000", T("filtre IMM bloqué à sa limite : la pédale ne suit plus le pied. Prends un autre « Type de "
+                      "filtre du capteur de force » (onglet Filtre).")),
     ("Parameter saving", T("le servo n'a pas pu enregistrer ses paramètres : coupe puis rallume son alimentation.")),
     ("Servo communication lost", T("la carte ne parle plus au servo : câble entre la carte et le servo, ou servo "
                                    "hors tension.")),
@@ -357,9 +359,11 @@ PFIELDS = [
     PField("endstopTravelRange_mm_u8", T("Zone de la butée"), unit="mm", group=G_DYN),
     PField("kfModelOrder_u8", T("Type de filtre du capteur de force"), "enum",
            items=[(0, T("Kalman (vitesse)")), (1, T("Kalman (accélération)")), (2, T("Exponentiel")),
-                  (3, T("Aucun")), (4, T("IMM adaptatif (maintien/mouvement) — conseillé"))], group=G_FILT,
-           tip=T("IMM adaptatif : lisse fort quand le pied tient la pédale immobile, réagit vite quand il bouge. "
-                 "C'est le filtre fait contre la vibration à faible force (doc ChrGri : IMM_Loadcell_Filter.md).")),
+                  (3, T("Aucun")), (4, T("IMM adaptatif (maintien/mouvement)"))], group=G_FILT,
+           tip=T("IMM adaptatif : lisse fort quand le pied tient la pédale immobile, réagit vite quand il bouge "
+                 "(doc ChrGri : IMM_Loadcell_Filter.md).\n"
+                 "Attention : avec le firmware actuel, ce filtre peut bloquer la pédale en position de départ (force "
+                 "figée, « [IMM] k_foot=5000 » dans les messages). Si ça arrive, prends un autre filtre.")),
     PField("kfModelNoise_u8", T("Vitesse du filtre (1 = doux … 255 = rapide)"), lo=1, hi=255, group=G_FILT,
            tip=T("Plus haut : la pédale suit plus vite le pied mais le bruit du capteur passe davantage "
                  "(vibration, surtout quand la pédale bouge doucement). Plus bas : plus calme mais plus lourd.\n"
