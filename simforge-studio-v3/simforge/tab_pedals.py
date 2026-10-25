@@ -602,8 +602,8 @@ class PedalsTab(QWidget):
         # d'identification (action 11) n'y fait rien ; une courte vibration ABS, elle, marche par le port série
         self.b_ident = QPushButton(T("Identifier"))
         self.b_ident.setToolTip(T("Fait vibrer la pédale (et ronronner son moteur) une demi-seconde pour la "
-                                  "reconnaître, pied levé. Ses réglages ABS sont remplacés le temps de la vibration "
-                                  "puis remis ; les modifications en attente ne sont pas envoyées."))
+                                  "reconnaître, pied levé. Vibration fixe : tes réglages ABS ne sont pas utilisés et "
+                                  "restent tels quels. Les modifications en attente ne sont pas envoyées."))
         self.b_ident.clicked.connect(self.identify)
         self.b_read = QPushButton(T("Relire"))
         self.b_read.clicked.connect(self._reread)
@@ -1085,10 +1085,12 @@ class PedalsTab(QWidget):
         if err:
             QMessageBox.warning(self, T("Pédale"), T("Réglages refusés (la pédale les ignorerait) : {e}").format(e=err))
 
-    # vibration d'identification : ABS sur la course, sans seuil de force (marche pied levé), quels que soient les
-    # réglages ABS de la pédale (amplitude 0 par défaut) ; la pédale reprend ensuite sa configuration
+    # Identifier : vibration fixe, indépendante des réglages ABS de la pédale. Le firmware n'a pas d'effet libre :
+    # l'ABS est emprunté le temps de la vibration (sur la course, sans seuil de force, donc pied levé), puis la
+    # pédale reprend sa configuration
     IDENT_ABS = dict(absAmplitude_u8=30, absFrequency_u8=15, absPattern_u8=0, absForceOrTarvelBit_u8=1,
-                     minForceForEffects_u8=0)
+                     minForceForEffects_u8=0)            # 3 % de la course à 15 Hz
+    IDENT_S = 0.6
 
     def identify(self):
         if not self.port or self.cfg is None:
@@ -1096,7 +1098,8 @@ class PedalsTab(QWidget):
         port, orig = self.port, dict(self.cfg)      # configuration de la pédale, sans les modifications en attente
         if self.m.send_config(port, dict(orig, **self.IDENT_ABS), False, reread=False):
             return
-        self._pulse_abs(port, 0.6, T("vibration d'identification"), lambda: self.m.send_config(port, orig, False))
+        self._pulse_abs(port, self.IDENT_S, T("vibration d'identification"),
+                        lambda: self.m.send_config(port, orig, False))
 
     def test_abs(self):
         if not self.port:

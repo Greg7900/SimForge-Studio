@@ -332,8 +332,10 @@ PFIELDS = [
     PField("simulateAbsTrigger_u8", T("ABS simulé (sans jeu)"), "bool", group=G_ABS,
            tip=T("La pédale vibre toute seule au-delà du seuil : pratique pour régler l'ABS hors jeu.")),
     PField("simulateAbsValue_u8", T("Seuil de l'ABS simulé"), lo=0, hi=100, unit="%", group=G_ABS),
-    PField("absFrequency_u8", T("Fréquence de l'ABS"), lo=1, hi=255, unit="Hz", group=G_ABS),
-    PField("absAmplitude_u8", T("Amplitude de l'ABS"), group=G_ABS, tip=T("Valeur brute du firmware (0–255).")),
+    # ABSOscillation.h : fréquence bornée à 50 Hz ; amplitude = octet × 0,1 % de la plage de force (ou de course)
+    PField("absFrequency_u8", T("Fréquence de l'ABS"), lo=1, hi=50, unit="Hz", group=G_ABS),
+    PField("absAmplitude_u8", T("Amplitude de l'ABS"), hi=25.5, unit="%", scale=0.1, dec=1, group=G_ABS,
+           tip=T("En % de la plage de force (ABS sur la force) ou de la course (ABS sur la course).")),
     PField("absPattern_u8", T("Forme de l'ABS"), "enum", items=[(0, T("Sinus")), (1, T("Dent de scie"))],
            group=G_ABS),
     PField("absForceOrTarvelBit_u8", T("L'ABS agit sur"), "enum", items=[(0, T("la force")), (1, T("la course"))],

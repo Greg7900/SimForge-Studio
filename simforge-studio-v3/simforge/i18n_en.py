@@ -1784,10 +1784,11 @@ EN = {
         'states/s',
     'Identifier':
         'Identify',
-    "Fait vibrer la pédale (et ronronner son moteur) une demi-seconde pour la reconnaître, pied levé. Ses réglages "
-    "ABS sont remplacés le temps de la vibration puis remis ; les modifications en attente ne sont pas envoyées.":
+    "Fait vibrer la pédale (et ronronner son moteur) une demi-seconde pour la reconnaître, pied levé. Vibration "
+    "fixe : tes réglages ABS ne sont pas utilisés et restent tels quels. Les modifications en attente ne sont pas "
+    "envoyées.":
         'Makes the pedal vibrate (and its motor hum) for half a second so you can tell which one it is, foot off. '
-        'Its ABS settings are replaced during the vibration, then restored; pending changes are not sent.',
+        'Fixed vibration: your ABS settings are not used and stay as they are. Pending changes are not sent.',
     "vibration d'identification":
         'identify vibration',
     "bip d'identification":
@@ -2091,4 +2092,6 @@ EN = {
     "port UART (puce CH343) et choisis ce port-là. Essayer quand même ?":
         "{p} is the pedal's native USB port: flashing through it usually fails. Plug the cable into the UART port "
         "(CH343 chip) and pick that port. Try anyway?",
+    "En % de la plage de force (ABS sur la force) ou de la course (ABS sur la course).":
+        "In % of the force range (ABS on force) or of the travel (ABS on travel).",
 }
