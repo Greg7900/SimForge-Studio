@@ -11,6 +11,8 @@ DÉMARRER
      Le premier lancement installe tout dans le dossier .venv (2-3 min, Python 3.9+ requis).
   2. Pour essayer sans la carte :  "SimForge Studio V3 (demo).bat"  (carte simulée).
   3. Pour fabriquer un .exe autonome :  build_exe.bat  (après un premier lancement).
+  Place disque : SimForge n'a besoin que de Qt « Essentials ». Si ton dossier .venv a été créé par une version
+  précédente (environ 830 Mo), supprime-le : le prochain lancement le recrée à environ 400 Mo.
   Langue : anglais par défaut, français via le sélecteur en haut à droite.
 
   Le port série ne s'ouvre que dans un programme à la fois : ferme l'outil web Odrive-Wheel,

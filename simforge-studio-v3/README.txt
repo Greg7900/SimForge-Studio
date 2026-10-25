@@ -11,6 +11,8 @@ GETTING STARTED
      The first start installs everything into the .venv folder (2-3 min, Python 3.9+ required).
   2. To try it without the board:  "SimForge Studio V3 (demo).bat"  (simulated board).
   3. To build a standalone .exe:  build_exe.bat  (after a first start).
+  Disk space: SimForge only needs Qt "Essentials". If your .venv folder was created by an older version (about
+  830 MB), delete it: the next start rebuilds it at about 400 MB.
   Language: English by default, French from the selector at the top right.
 
   The serial port can only be open in one program at a time: close the Odrive-Wheel web tool,

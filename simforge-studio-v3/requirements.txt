@@ -1,4 +1,6 @@
-PySide6>=6.5
+# Qt « Essentials » seulement (QtCore, QtGui, QtWidgets, QtSvg, QtOpenGL, QtTest) : tout ce qu'utilisent SimForge
+# et pyqtgraph. Le paquet « PySide6 » complet ajoute WebEngine, Pdf, etc. (+430 Mo dans .venv) sans rien apporter.
+PySide6-Essentials>=6.5
 pyqtgraph>=0.13
 numpy
 hidapi>=0.14
