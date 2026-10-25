@@ -12,7 +12,7 @@ from PySide6.QtCore import Qt, QTimer, Signal, QPointF, QRectF
 from PySide6.QtGui import QPainter, QColor, QPen, QFont
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton, QComboBox,
                                QCheckBox, QDoubleSpinBox, QSpinBox, QScrollArea, QMessageBox, QFileDialog,
-                               QPlainTextEdit, QTabBar, QTabWidget)
+                               QPlainTextEdit, QTabBar, QStackedWidget, QFrame)
 
 from . import ped_protocol as PP
 from .i18n import T
@@ -24,6 +24,79 @@ pg.setConfigOptions(antialias=False, background=C["panel"], foreground=C["dim"])
 
 def _pct(v):
     return (v or 0) / 65535 * 100
+
+
+class _WheelOnlyWhenFocused:
+    """La molette ne modifie le champ que s'il a été cliqué ; sinon elle fait défiler la page."""
+
+    def __init__(self, *a, **kw):
+        super().__init__(*a, **kw)
+        self.setFocusPolicy(Qt.StrongFocus)          # la molette seule ne donne plus le focus
+
+    def wheelEvent(self, ev):
+        if self.hasFocus():
+            super().wheelEvent(ev)
+        else:
+            ev.ignore()                             # remonte à la zone défilante
+
+
+class Spin(_WheelOnlyWhenFocused, QSpinBox):
+    pass
+
+
+class DSpin(_WheelOnlyWhenFocused, QDoubleSpinBox):
+    pass
+
+
+class Combo(_WheelOnlyWhenFocused, QComboBox):
+    pass
+
+
+class Plot(pg.PlotWidget):
+    """Graphique fixe : la molette fait défiler la page au lieu d'être avalée par le graphique."""
+
+    def wheelEvent(self, ev):
+        ev.ignore()
+
+
+class Bar(QTabBar):
+    """Barre d'onglets que la molette ne fait pas changer (on change d'onglet au clic)."""
+
+    def wheelEvent(self, ev):
+        ev.ignore()
+
+
+class TabPages(QWidget):
+    """Barre d'onglets au-dessus d'une pile de pages, sans le mode « document » de QTabWidget qui se dessinait
+    par-dessus les pages sous Windows."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
+        self.bar = Bar()
+        self.bar.setDrawBase(False)
+        self.bar.setExpanding(False)
+        self.bar.setFocusPolicy(Qt.NoFocus)
+        lay.addWidget(self.bar)
+        sep = QFrame()
+        sep.setFixedHeight(1)
+        sep.setStyleSheet(f"background: {C['line']};")
+        lay.addWidget(sep)
+        self.stack = QStackedWidget()
+        lay.addWidget(self.stack, 1)
+        self.bar.currentChanged.connect(self.stack.setCurrentIndex)
+
+    def addTab(self, w, title):
+        self.stack.addWidget(w)
+        return self.bar.addTab(title)
+
+    def setCurrentIndex(self, i):
+        self.bar.setCurrentIndex(i)
+
+    def currentIndex(self):
+        return self.bar.currentIndex()
 
 
 class PRow(QWidget):
@@ -45,12 +118,12 @@ class PRow(QWidget):
             self.ed = QCheckBox()
             self.ed.toggled.connect(self._ch)
         elif f.kind == "enum":
-            self.ed = QComboBox()
+            self.ed = Combo()
             for v, t in f.items:
                 self.ed.addItem(t, v)
             self.ed.currentIndexChanged.connect(self._ch)
         else:
-            self.ed = QDoubleSpinBox()
+            self.ed = DSpin()
             self.ed.setDecimals(f.dec)
             self.ed.setRange(f.lo, f.hi)
             self.ed.setSingleStep(10 ** -f.dec if f.dec else 1)
@@ -129,20 +202,20 @@ class CurveEditor(QWidget):
         lay.setContentsMargins(0, 0, 0, 0)
         top = QHBoxLayout()
         top.addWidget(QLabel(T("Nombre de points")))
-        self.n = QSpinBox()
+        self.n = Spin()
         self.n.setRange(2, 11)
         self.n.valueChanged.connect(self._n_changed)
         top.addWidget(self.n)
         top.addSpacing(12)
         top.addWidget(QLabel(T("Modèle")))
-        self.preset = QComboBox()
+        self.preset = Combo()
         self.preset.addItems([T("— choisir —"), T("Linéaire"), T("Progressive (frein)"), T("Très progressive"),
                               T("Dégressive")])
         self.preset.currentIndexChanged.connect(self._preset)
         top.addWidget(self.preset)
         top.addStretch()
         lay.addLayout(top)
-        self.plot = pg.PlotWidget()
+        self.plot = Plot()
         self.plot.setMinimumHeight(170)
         self.plot.showGrid(x=True, y=True, alpha=0.15)
         self.plot.setLabel("bottom", xlabel, "%")
@@ -163,7 +236,7 @@ class CurveEditor(QWidget):
         g.addWidget(QLabel(ylabel + " %"), 1, 0)
         self.sx, self.sy = [], []
         for i in range(11):
-            a, b = QSpinBox(), QSpinBox()
+            a, b = Spin(), Spin()
             for s in (a, b):
                 s.setRange(0, 100)
                 # NoButtons + la feuille de style masquait le chiffre : flèches gardées mais réduites à 0 px
@@ -409,7 +482,7 @@ class PedalsTab(QWidget):
         root.setSpacing(8)
 
         # ------------------------------------------- onglets des pédales
-        self.sel = QTabBar()
+        self.sel = Bar()
         self.sel.setExpanding(False)
         self.sel.setDrawBase(False)
         self.sel.setStyleSheet("QTabBar::tab { font-size: 12pt; padding: 10px 26px; }")
@@ -558,8 +631,7 @@ class PedalsTab(QWidget):
     def _tab_group(self, parent_lay, groups, title=""):
         """Carte contenant un onglet par groupe de réglages ; renvoie {groupe: layout de l'onglet}."""
         c, l = card(title)
-        tw = QTabWidget()
-        tw.setDocumentMode(True)
+        tw = TabPages()
         pages = {}
         for g in groups:
             w = QWidget()
