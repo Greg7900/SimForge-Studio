@@ -161,7 +161,7 @@ class MainWindow(QMainWindow):
         self.b_arm.clicked.connect(self.arm_motor)
         hl.addWidget(self.b_arm)
         hl.addSpacing(6)
-        self.estop = QPushButton("STOP")
+        self.estop = QPushButton(T("STOP VOLANT"))
         self.estop.setObjectName("estop")
         self.estop.setToolTip(T("Met l'axe au repos : le moteur n'est plus alimenté du tout (jeux compris) et le reste "
                                 "tant que le STOP est enclenché. Raccourci : Échap.\nNe remplace pas la coupure "
@@ -424,7 +424,11 @@ class MainWindow(QMainWindow):
             return
         self.pages.setCurrentWidget(self.page_key[key][1])
         # la barre du bas (recentrer, enregistrer dans la carte…) ne concerne que le volant
-        self.actbar.setVisible(key in self.wheel_pages or key == "t_console")
+        wheel = key in self.wheel_pages or key == "t_console"
+        self.actbar.setVisible(wheel)
+        # « Activer le moteur » et STOP ne pilotent que le volant : cachés ailleurs (Échap reste actif partout)
+        self.b_arm.setVisible(wheel)
+        self.estop.setVisible(wheel)
 
     def on_pedals(self):
         ps = self.pm.pedals()
@@ -536,10 +540,10 @@ class MainWindow(QMainWindow):
     def on_estop_changed(self, on):
         if on:
             self.force.stop_all()
-            self.estop.setText(T("STOP ENCLENCHÉ — RÉARMER"))
+            self.estop.setText(T("STOP VOLANT ENCLENCHÉ — RÉARMER"))
             self.estop.setObjectName("estopLatched")
         else:
-            self.estop.setText("STOP")
+            self.estop.setText(T("STOP VOLANT"))
             self.estop.setObjectName("estop")
         self.estop.style().unpolish(self.estop)
         self.estop.style().polish(self.estop)

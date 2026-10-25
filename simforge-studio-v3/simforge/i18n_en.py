@@ -83,6 +83,10 @@ EN = {
         'DFU mode',
     "La carte va quitter le mode volant et attendre un nouveau firmware (STM32CubeProgrammer, USB). Elle reviendra au firmware actuel après un débranchement/rebranchement si rien n'est flashé. Continuer ?":
         'The board will leave wheel mode and wait for new firmware (STM32CubeProgrammer, USB). It returns to the current firmware after unplugging/replugging if nothing is flashed. Continue?',
+    'STOP VOLANT':
+        'WHEEL STOP',
+    'STOP VOLANT ENCLENCHÉ — RÉARMER':
+        'WHEEL STOP LATCHED — RELEASE',
     'STOP ENCLENCHÉ — RÉARMER':
         'STOP LATCHED — RELEASE',
     'Connecté':
