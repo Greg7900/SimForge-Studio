@@ -2043,4 +2043,12 @@ EN = {
     "de force » (onglet Filtre).":
         'IMM filter stuck at its limit: the pedal no longer follows the foot. Pick another "Load cell filter type" '
         '(Filter tab).',
+    "Aucun réglage stable, le plus calme : vitesse du filtre {s}, amortissement {d} % ({o:.1f} % du temps en "
+    "oscillation)":
+        "No stable setting, the calmest: filter speed {s}, damping {d} % ({o:.1f} % of the time oscillating)",
+    "Réglage le plus calme appliqué (pas encore enregistré). Essaie la pédale : garde-le s'il te convient, sinon "
+    "reviens à tes réglages d'avant et vérifie la mécanique (jeu, frottements), la précharge et le début de la "
+    "courbe de force.":
+        "Calmest setting applied (not saved yet). Try the pedal: keep it if it suits you, otherwise go back to your "
+        "previous settings and check the mechanics (play, friction), the preload and the start of the force curve.",
 }

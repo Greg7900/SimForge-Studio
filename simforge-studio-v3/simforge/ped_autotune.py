@@ -235,11 +235,25 @@ class AutoTune(QWidget):
             self.todo.setText(T("Réglage appliqué (pas encore enregistré). Essaie la pédale, puis garde-le ou "
                                 "reviens à tes réglages d'avant."))
         else:
-            self.final = None
-            self._send(self.orig)
-            self.step_lbl.setText(T("Aucun réglage stable trouvé"))
-            self.todo.setText(T("Même au plus calme, la pédale vibre : réglages d'avant remis. Vérifie la mécanique "
-                                "(jeu, frottements), la précharge et le début de la courbe de force."))
+            # rien sous le seuil : on propose quand même le palier le plus calme, à essayer au pied
+            tried = [r for r in self.results if r[0] == "speed"]
+            if tried:
+                kw, osc = min(tried, key=lambda r: r[2])[1:3]
+                self.final = self._cfg(**kw)
+                self.final["debugFlags0_u8"] = self.orig["debugFlags0_u8"]
+                self._send(self.final)
+                self.step_lbl.setText(T("Aucun réglage stable, le plus calme : vitesse du filtre {s}, amortissement "
+                                        "{d} % ({o:.1f} % du temps en oscillation)").format(
+                    s=kw["kfModelNoise_u8"], d=kw["virtualPedalDampingInPercent_u8"], o=osc * 100))
+                self.todo.setText(T("Réglage le plus calme appliqué (pas encore enregistré). Essaie la pédale : "
+                                    "garde-le s'il te convient, sinon reviens à tes réglages d'avant et vérifie la "
+                                    "mécanique (jeu, frottements), la précharge et le début de la courbe de force."))
+            else:
+                self.final = None
+                self._send(self.orig)
+                self.step_lbl.setText(T("Aucun réglage stable trouvé"))
+                self.todo.setText(T("Même au plus calme, la pédale vibre : réglages d'avant remis. Vérifie la "
+                                    "mécanique (jeu, frottements), la précharge et le début de la courbe de force."))
         self.cur = None
         self.bar.setValue(100)
         self._buttons()
