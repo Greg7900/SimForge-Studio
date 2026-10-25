@@ -2094,4 +2094,6 @@ EN = {
         "(CH343 chip) and pick that port. Try anyway?",
     "En % de la plage de force (ABS sur la force) ou de la course (ABS sur la course).":
         "In % of the force range (ABS on force) or of the travel (ABS on travel).",
+    'Nouvel essai à {b} bauds…':
+        'Retrying at {b} baud…',
 }

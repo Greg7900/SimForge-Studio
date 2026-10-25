@@ -106,11 +106,21 @@ class Flasher(QObject):
         except Exception:
             v5 = False
         h = (lambda x: x.replace("_", "-")) if v5 else (lambda x: x)   # esptool 5 : noms avec tirets
-        args = ["--chip", img.get("chip", "esp32s3"), "--port", port, "--baud", "921600",
-                "--before", h("default_reset"), "--after", h("hard_reset"), h("write_flash")]
-        if erase:
-            args.append("--erase-all")
-        args += ["-z"] + parts
+        # 921600 bauds, puis 115200 si ça échoue (câble long, pilote CH343 capricieux à haute vitesse)
+        for baud in ("921600", "115200"):
+            if baud != "921600":
+                self._emit(T("Nouvel essai à {b} bauds…").format(b=baud) + "\n")
+            args = ["--chip", img.get("chip", "esp32s3"), "--port", port, "--baud", baud,
+                    "--before", h("default_reset"), "--after", h("hard_reset"), h("write_flash")]
+            if erase:
+                args.append("--erase-all")
+            args += ["-z"] + parts
+            ok, msg = self._esptool(esptool, args)
+            if ok:
+                break
+        self.done.emit(ok, msg)
+
+    def _esptool(self, esptool, args):
         out = _Out(self._emit)
         old = sys.stdout, sys.stderr
         ok, msg = False, ""
@@ -126,7 +136,7 @@ class Flasher(QObject):
         finally:
             out.write("\n")
             sys.stdout, sys.stderr = old
-        self.done.emit(ok, msg)
+        return ok, msg
 
 
 class PedalFirmwareTab(QWidget):

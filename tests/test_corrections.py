@@ -297,3 +297,22 @@ def test_identifier_vibre_vraiment(qapp):
     assert sent[0][2] == {"reread": False} and not sent[0][1]
     assert sent[-1][0] == cfg                           # configuration de la pédale remise
     assert acts.count(1) >= 8 and acts[-1] == 0         # relancé pendant ~0,6 s, puis arrêté
+
+
+def test_flashage_reessaie_moins_vite(qapp, monkeypatch):
+    """À 921600 bauds, certains câbles ou pilotes CH343 échouent : on réessaie à 115200 au lieu d'abandonner."""
+    import sys as _sys
+    from simforge.tab_pedal_fw import Flasher
+    bauds = []
+
+    def main(args):
+        bauds.append(args[args.index("--baud") + 1])
+        if bauds[-1] == "921600":
+            raise RuntimeError("Serial data stream stopped")
+
+    monkeypatch.setitem(_sys.modules, "esptool", SimpleNamespace(__version__="5.1", main=main))
+    f = Flasher()
+    res = []
+    f.done.connect(lambda ok, msg: res.append(ok))
+    f._run("COM8", {"chip": "esp32s3", "dir": ".", "parts": [["0x0", "x.bin"]]}, False)
+    assert bauds == ["921600", "115200"] and res == [True]
