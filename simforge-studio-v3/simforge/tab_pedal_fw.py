@@ -234,6 +234,15 @@ class PedalFirmwareTab(QWidget):
         if not port or not img:
             QMessageBox.information(self, T("Flasher"), T("Choisis un port."))
             return
+        # port USB natif d'une pédale en marche (firmware « un câble ») : esptool ne sait pas la mettre en mode
+        # flashage par là (seul le mode flashage de la puce, PID 0x1001, le permet)
+        ports = _lp.comports() if _lp else []
+        native = any(p.device == port and p.vid == 0x303A and p.pid != 0x1001 for p in ports)
+        if native and QMessageBox.question(self, T("Flasher"), T(
+                "{p} est le port USB natif de la pédale : le flashage par ce port échoue en général. Branche le "
+                "câble sur le port UART (puce CH343) et choisis ce port-là. Essayer quand même ?").format(p=port)) \
+                != QMessageBox.Yes:
+            return
         if QMessageBox.question(self, T("Flasher"), T("Flasher « {f} » sur {p} ?\nNe débranche pas la pédale "
                                                       "pendant le flashage.").format(f=_loc(img.get("label")), p=port)) \
                 != QMessageBox.Yes:

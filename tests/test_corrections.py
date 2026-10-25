@@ -228,3 +228,25 @@ def test_activation_efface_toujours_les_erreurs():
     w, got, closed_loop = _worker(link, None)
     closed_loop(w)
     assert any("erreur" in str(a).lower() or "error" in str(a).lower() for a in got)
+
+
+# ---------------------------------------------------------------- pédale « un câble » (USB natif)
+def test_port_natif_dtr_leve(monkeypatch):
+    """Firmware « un câble » : TinyUSB n'envoie rien tant que DTR est bas ; la puce série, elle, garde DTR bas."""
+    from simforge import ped_device
+    opened = []
+
+    class _Serial:
+        def open(self):
+            opened.append((self.port, self.baudrate, self.dtr, self.rts))
+
+    monkeypatch.setattr(ped_device.serial, "Serial", _Serial)
+    ped_device.SerialPort("COM9", 921600, native=True)
+    ped_device.SerialPort("COM8", PP.BAUD)
+    assert opened == [("COM9", 921600, True, False), ("COM8", PP.BAUD, False, False)]
+
+
+def test_version_firmware_simforge():
+    assert PP.fw_text((26, 43, 7)) == "26.43.07" and not PP.simforge_fw((26, 43, 7))
+    assert PP.fw_text((26, 43, 107)) == "26.43.07 SimForge" and PP.simforge_fw((26, 43, 107))
+    assert PP.fw_text(None) == "?" and not PP.simforge_fw(None)

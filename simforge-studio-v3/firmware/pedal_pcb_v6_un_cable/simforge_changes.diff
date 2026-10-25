@@ -1,0 +1,56 @@
+diff --git a/ESP32/include/Main.h b/ESP32/include/Main.h
+index e5e40e0..09e07ea 100644
+--- a/ESP32/include/Main.h
++++ b/ESP32/include/Main.h
+@@ -467,6 +467,10 @@ static const uint32_t s_secondsPerMinute_u32 = 60;
+ 
+ #define ALM_PORT_GPIO 11
+ 
++#ifdef SIMFORGE_ONE_CABLE
++#define USE_CDC_INSTEAD_OF_UART
++#endif
++
+ #endif
+ 
+ // V7 version of dev PCB for ESP32-S3-Zero
+diff --git a/ESP32/platformio.envs/env.ControlBoard_V6_OneCable.ini b/ESP32/platformio.envs/env.ControlBoard_V6_OneCable.ini
+new file mode 100644
+index 0000000..5a78f10
+--- /dev/null
++++ b/ESP32/platformio.envs/env.ControlBoard_V6_OneCable.ini
+@@ -0,0 +1,7 @@
++; SimForge : PCB V6, un seul câble (réglages + manette sur l'USB natif de l'ESP32-S3), bip par USB
++[env:ControlBoard_V6_OneCable]
++extends = env:ControlBoard_V6
++build_flags =
++	${env:ControlBoard_V6.build_flags}
++	-DSIMFORGE_ONE_CABLE
++	-DCFG_TUD_CDC_TX_BUFSIZE=16384 ; comme la V7 : un lot complet d'états tient dans le tampon USB
+diff --git a/ESP32/src/Main.cpp b/ESP32/src/Main.cpp
+index f27a54b..1133517 100644
+--- a/ESP32/src/Main.cpp
++++ b/ESP32/src/Main.cpp
+@@ -1151,6 +1151,9 @@ void setup() {
+ 
+   parse_version(DAP_FIRMWARE_VERSION, &g_versionMajor, &g_versionMinor,
+                 &g_versionPatch);
++#ifdef SIMFORGE_ONE_CABLE
++  g_versionPatch += 100; // SimForge one-cable variant (patch + 100)
++#endif
+   ActiveSerial->println(" ");
+   ActiveSerial->println(" ");
+   ActiveSerial->println(" ");
+@@ -3884,6 +3887,13 @@ void IRAM_ATTR_FLAG serialCommunicationTaskRx(void *pvParameters) {
+               ActiveSerial->println(logString);
+             }
+ 
++#ifdef SIMFORGE_ONE_CABLE
++            // SimForge: identification beep also over USB (ChrGri: ESP-NOW only)
++            if (received_action.payloadPedalAction_st.systemAction_u8 ==
++                (uint8_t)PedalSystemAction::ASSIGNMENT_CHECK_BEEP) {
++              buzzerBeepAction_b = true;
++            }
++#endif
+             if (received_action.payloadPedalAction_st.systemAction_u8 ==
+                 (uint8_t)PedalSystemAction::WAKEUP_PEDAL) {
+               if (g_pedalOperationalState_u8 ==

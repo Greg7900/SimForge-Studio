@@ -185,6 +185,23 @@ DBG_EXT_DECIMATED = 4
 # commande ponctuelle : efface les alarmes du servo iSV57 et écrit leur historique (le firmware remet le bit à 0)
 DBG_CLEAR_ALARMS = 16
 
+# firmware V6 « un câble » compilé par SimForge (firmware/pedal_pcb_v6_un_cable) : 3e nombre de la version + 100
+# (26.43.07 → 26.43.107) ; il fait aussi biper la pédale par USB (action 11)
+SIMFORGE_FW_PATCH = 100
+
+
+def simforge_fw(v) -> bool:
+    return bool(v) and v[2] >= SIMFORGE_FW_PATCH
+
+
+def fw_text(v) -> str:
+    if not v:
+        return "?"
+    if simforge_fw(v):
+        return f"{v[0]}.{v[1]:02d}.{v[2] - SIMFORGE_FW_PATCH:02d} SimForge"
+    return f"{v[0]}.{v[1]:02d}.{v[2]:02d}"
+
+
 # actions système (PedalEnum.h : PedalSystemAction)
 ACT_RESTART = 2
 ACT_DOWNLOAD_MODE = 5

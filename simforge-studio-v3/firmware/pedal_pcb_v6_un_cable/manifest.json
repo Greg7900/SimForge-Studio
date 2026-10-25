@@ -1,0 +1,7 @@
+{"order": 1.5,
+ "label": {"fr": "Pédale active — PCB V6, un seul câble (version SimForge)",
+           "en": "Active pedal — PCB V6, one cable (SimForge build)"},
+ "info": {"fr": "Firmware ChrGri 26.43.07 (config v174) modifié par SimForge : réglages et manette passent tous deux par le port USB natif de l'ESP32-S3 (un seul câble), et « Identifier (bip) » marche par USB. Le port UART (puce CH343) ne sert plus qu'à flasher : flashe par ce port-là. Pour revenir en arrière, flashe « Pédale active — PCB V6 » par le port UART. Modifications : simforge_changes.diff.",
+          "en": "ChrGri firmware 26.43.07 (config v174) modified by SimForge: settings and joystick both go through the ESP32-S3 native USB port (one cable), and \"Identify (beep)\" works over USB. The UART port (CH343 chip) is only used for flashing: flash through that port. To go back, flash \"Active pedal — PCB V6\" through the UART port. Changes: simforge_changes.diff."},
+ "chip": "esp32s3",
+ "parts": [["0x0", "bootloader.bin"], ["0x8000", "partitions.bin"], ["0xe000", "boot_app0.bin"], ["0x10000", "firmware.bin"]]}

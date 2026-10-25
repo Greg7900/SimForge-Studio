@@ -1660,8 +1660,10 @@ EN = {
         'Board not connected',
     'Pédales':
         'Pedals',
-    'Aucune pédale détectée. Branche chaque pédale par son port USB « UART » (puce CH343/CP210x) et ferme SimHub, qui garde les ports ouverts.':
-        'No pedal detected. Plug each pedal in through its "UART" USB port (CH343/CP210x chip) and close SimHub, which keeps the ports open.',
+    "Aucune pédale détectée. Branche chaque pédale par son port USB « UART » (puce CH343/CP210x), ou par son port "
+    "USB natif avec le firmware « un câble », et ferme SimHub, qui garde les ports ouverts.":
+        'No pedal detected. Plug each pedal in through its "UART" USB port (CH343/CP210x chip), or through its '
+        'native USB port with the "one cable" firmware, and close SimHub, which keeps the ports open.',
     'Réglages des pédales':
         'Pedal settings',
     'Firmware des pédales':
@@ -1774,14 +1776,20 @@ EN = {
         'Regressive',
     'Fichier JSON avec tous les champs de la configuration de la pédale.':
         'JSON file with every field of the pedal configuration.',
-    'Aucune pédale détectée. Branche la pédale par son port USB « UART » (puce CH343/CP210x) et ferme SimHub.':
-        'No pedal detected. Plug the pedal in through its "UART" USB port (CH343/CP210x chip) and close SimHub.',
+    "Aucune pédale détectée. Branche la pédale par son port USB « UART » (puce CH343/CP210x), ou par son port USB "
+    "natif avec le firmware « un câble », et ferme SimHub.":
+        'No pedal detected. Plug the pedal in through its "UART" USB port (CH343/CP210x chip), or through its '
+        'native USB port with the "one cable" firmware, and close SimHub.',
     'états/s':
         'states/s',
-    "Indisponible par câble USB : le firmware de la pédale ne bipe que sur ordre du récepteur sans fil (ESP-NOW). "
-    "Par USB, chaque pédale a déjà son propre port COM.":
-        "Not available over the USB cable: the pedal firmware only beeps when the wireless receiver (ESP-NOW) asks it "
-        "to. Over USB, each pedal already has its own COM port.",
+    'Fait biper la pédale pour la reconnaître.':
+        'Makes the pedal beep so you can tell which one it is.',
+    "Indisponible par câble USB avec le firmware de ChrGri : la pédale ne bipe que sur ordre du récepteur sans fil "
+    "(ESP-NOW). Le firmware « V6 un câble » de la page Firmware le fait aussi par USB.":
+        "Not available over USB with ChrGri's firmware: the pedal only beeps when the wireless receiver (ESP-NOW) "
+        "asks it to. The \"V6 one cable\" firmware on the Firmware page also does it over USB.",
+    "bip d'identification":
+        'identify beep',
     "Tester l'ABS (1 s)":
         'Test ABS (1 s)',
     "Déclenche l'effet ABS pendant 1 seconde, sans jeu : appuie sur la pédale.":
@@ -2077,4 +2085,8 @@ EN = {
         "Otherwise the endstop throws it back at once.",
     'STOP réarmé':
         'STOP released',
+    "{p} est le port USB natif de la pédale : le flashage par ce port échoue en général. Branche le câble sur le "
+    "port UART (puce CH343) et choisis ce port-là. Essayer quand même ?":
+        "{p} is the pedal's native USB port: flashing through it usually fails. Plug the cable into the UART port "
+        "(CH343 chip) and pick that port. Try anyway?",
 }

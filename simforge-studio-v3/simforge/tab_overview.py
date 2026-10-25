@@ -91,7 +91,8 @@ class OverviewTab(QWidget):
         # ---------------------------------------------- pédales
         c, l = card(T("Pédales"))
         self.p_none = hint(T("Aucune pédale détectée. Branche chaque pédale par son port USB « UART » (puce "
-                             "CH343/CP210x) et ferme SimHub, qui garde les ports ouverts."))
+                             "CH343/CP210x), ou par son port USB natif avec le firmware « un câble », et ferme "
+                             "SimHub, qui garde les ports ouverts."))
         l.addWidget(self.p_none)
         self.p_lay = QVBoxLayout()
         self.p_lay.setSpacing(14)

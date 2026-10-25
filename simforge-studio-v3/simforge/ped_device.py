@@ -42,6 +42,7 @@ class PedalInfo:
         self.tag = None
         self.version = None
         self.fw = None
+        self.fw_v = None            # version brute (3 nombres)
         self.state = None
         self.config = None
         self.ext = None             # dernier état détaillé (debugFlags0 bit 64), pour le diagnostic du servo
@@ -64,13 +65,16 @@ class PedalInfo:
 #  Port réel / pédale simulée
 # ======================================================================
 class SerialPort:
-    def __init__(self, port, baud):
+    def __init__(self, port, baud, native=False):
         s = serial.Serial()
         s.port = port
         s.baudrate = baud
         s.timeout = 0.02
         s.write_timeout = 0.5
-        s.dtr = False          # DTR/RTS au repos : sinon le circuit d'auto-reset redémarre l'ESP32
+        # puce série (CH343…) : DTR/RTS au repos, sinon le circuit d'auto-reset redémarre l'ESP32.
+        # USB natif (firmware « un câble ») : DTR levé, sinon le firmware (TinyUSB) n'envoie rien ; pas de reset
+        # possible par DTR/RTS, il est désactivé dans le firmware
+        s.dtr = native
         s.rts = False
         s.open()
         self.s = s
@@ -219,8 +223,8 @@ class PedalLink(QThread):
                         if fr.ptype == PP.T_STATE:
                             info.state = fr.data
                             info.tag = fr.tag
-                            v = fr.data["pedalFirmwareVersion_au8"]
-                            info.fw = f"{v[0]}.{v[1]:02d}.{v[2]:02d}"          # ex. 26.43.07
+                            info.fw_v = tuple(fr.data["pedalFirmwareVersion_au8"])
+                            info.fw = PP.fw_text(info.fw_v)          # ex. 26.43.07, ou 26.43.07 SimForge
                             n_states += 1
                             with mgr.lock:
                                 mgr.buf.append((info.port, now, fr.data))
@@ -336,13 +340,11 @@ class PedalManager(QObject):
                 out.append(p.device)
         return out
 
-    def _baud(self, port):
+    def _native(self, port):
+        """Port USB natif de l'ESP32-S3 (firmware « un câble ») plutôt que puce série."""
         if self.demo or serial is None:
-            return PP.BAUD
-        for p in serial.tools.list_ports.comports():
-            if p.device == port and p.vid == ESPRESSIF_VID:
-                return 921600               # USB CDC natif : vitesse ignorée, le plugin utilise 921600
-        return PP.BAUD
+            return False
+        return any(p.device == port and p.vid == ESPRESSIF_VID for p in serial.tools.list_ports.comports())
 
     def scan(self):
         if not self.enabled:
@@ -357,8 +359,9 @@ class PedalManager(QObject):
                 tag = 1 if "FREIN" in port else 2
                 opener = (lambda t=tag: FakePedalPort(t))
             else:
-                baud = self._baud(port)
-                opener = (lambda p=port, b=baud: SerialPort(p, b))
+                # USB natif : vitesse ignorée (921600 comme le plugin ; surtout pas 1200 = mode flashage)
+                native = self._native(port)
+                opener = (lambda p=port, n=native: SerialPort(p, 921600 if n else PP.BAUD, n))
             l = PedalLink(self, port, opener)
             self.probing[port] = l
             l.start()

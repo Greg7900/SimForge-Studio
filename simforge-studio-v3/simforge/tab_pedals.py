@@ -597,11 +597,11 @@ class PedalsTab(QWidget):
         c, l = card(T("Actions"))
         g = QGridLayout()
         g.setSpacing(6)
-        # le firmware de ChrGri ne traite le bip (action 11) que reçu par ESP-NOW, pas par le port série
+        # firmware de ChrGri : bip (action 11) reçu par ESP-NOW seulement ; version SimForge : aussi par USB
         self.b_beep = QPushButton(T("Identifier (bip)"))
         self.b_beep.setEnabled(False)
-        self.b_beep.setToolTip(T("Indisponible par câble USB : le firmware de la pédale ne bipe que sur ordre du "
-                                 "récepteur sans fil (ESP-NOW). Par USB, chaque pédale a déjà son propre port COM."))
+        self.b_beep.clicked.connect(lambda: self.m.action(self.port, T("bip d'identification"),
+                                                         systemAction_u8=PP.ACT_BEEP))
         self.b_read = QPushButton(T("Relire"))
         self.b_read.clicked.connect(self._reread)
         self.b_exp = QPushButton(T("Exporter…"))
@@ -876,7 +876,8 @@ class PedalsTab(QWidget):
             self._enable(False)
             self.kin.set_cfg(None)
             self.status.setText(T("Aucune pédale détectée. Branche la pédale par son port USB « UART » (puce "
-                                  "CH343/CP210x) et ferme SimHub."))
+                                  "CH343/CP210x), ou par son port USB natif avec le firmware « un câble », et "
+                                  "ferme SimHub."))
             return
         self._select()
 
@@ -957,6 +958,11 @@ class PedalsTab(QWidget):
         if self._roles() != self._roles_shown:
             self._refresh_list()
         info = self.m.info(self.port) if self.port else None
+        beep = bool(info and PP.simforge_fw(info.fw_v))
+        self.b_beep.setEnabled(beep)
+        self.b_beep.setToolTip(T("Fait biper la pédale pour la reconnaître.") if beep else T(
+            "Indisponible par câble USB avec le firmware de ChrGri : la pédale ne bipe que sur ordre du récepteur "
+            "sans fil (ESP-NOW). Le firmware « V6 un câble » de la page Firmware le fait aussi par USB."))
         if info:
             self.status.setText(self._status_text(info))
             if info.incompatible:
