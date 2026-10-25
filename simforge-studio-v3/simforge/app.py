@@ -9,7 +9,7 @@ from PySide6.QtCore import Qt, QProcess, QEvent
 from PySide6.QtGui import QKeySequence, QShortcut, QIcon
 from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
                                QStackedWidget, QListWidget, QListWidgetItem, QPlainTextEdit, QMessageBox,
-                               QComboBox, QScrollArea, QFrame)
+                               QComboBox, QScrollArea, QFrame, QApplication)
 
 from . import i18n
 from . import ow_protocol as P
@@ -29,7 +29,7 @@ from .tab_overlay import OverlayTab
 from .tab_params import SettingsTab
 from .tab_setup import SetupTab
 from .theme import C
-from .widgets import Led, hint
+from .widgets import Led, hint, install_wheel_guard
 
 VERSION = "3.0"
 TARGET_BASE = ("0", "5", "6")
@@ -68,6 +68,7 @@ class MainWindow(QMainWindow):
         if icon_path:
             self.setWindowIcon(QIcon(icon_path))
         self.resize(1400, 900)
+        install_wheel_guard(QApplication.instance())
         self.b = Board(demo=demo)
         self.pm = PedalManager(demo=demo)
         self.sdl = SdlInput()

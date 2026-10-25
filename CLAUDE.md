@@ -12,7 +12,8 @@ Tout le code est dans `simforge-studio-v3/` :
   `ped_protocol.py` (trames, `VERSION` de structure = 174, contrôles `plausible()`, catalogue `PFIELDS` des réglages affichés,
   chacun rangé dans un groupe `G_*`), `ped_device.py` (`PedalManager`, un thread par port, pédales simulées en démo),
   `tab_pedals.py` (page Réglages), `tab_pedal_fw.py` (flashage).
-- `widgets.py` (`card`, `hint`, `AxisBar`…), `theme.py` (couleurs `C`, feuille de style `QSS`).
+- `widgets.py` (`card`, `hint`, `AxisBar`…, `WheelGuard` : filtre global installé par `app.py`, la molette ne modifie
+  un champ que s'il a été cliqué), `theme.py` (couleurs `C`, feuille de style `QSS`).
 - `firmware/` : binaires des pédales et du récepteur (licence CC BY-NC-SA de ChrGri). Ne jamais modifier les `.bin`.
 
 ## Règles du code

@@ -8,7 +8,7 @@ import time
 from collections import deque
 
 import pyqtgraph as pg
-from PySide6.QtCore import Qt, QTimer, Signal, QPointF, QRectF
+from PySide6.QtCore import Qt, QTimer, Signal, QPointF, QRectF, QEvent
 from PySide6.QtGui import QPainter, QColor, QPen, QFont
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton, QComboBox,
                                QCheckBox, QDoubleSpinBox, QSpinBox, QScrollArea, QMessageBox, QFileDialog,
@@ -26,41 +26,49 @@ def _pct(v):
     return (v or 0) / 65535 * 100
 
 
-class _WheelOnlyWhenFocused:
-    """La molette ne modifie le champ que s'il a été cliqué ; sinon elle fait défiler la page."""
-
-    def __init__(self, *a, **kw):
-        super().__init__(*a, **kw)
-        self.setFocusPolicy(Qt.StrongFocus)          # la molette seule ne donne plus le focus
-
-    def wheelEvent(self, ev):
-        if self.hasFocus():
-            super().wheelEvent(ev)
-        else:
-            ev.ignore()                             # remonte à la zone défilante
-
-
-class Spin(_WheelOnlyWhenFocused, QSpinBox):
-    pass
-
-
-class DSpin(_WheelOnlyWhenFocused, QDoubleSpinBox):
-    pass
-
-
-class Combo(_WheelOnlyWhenFocused, QComboBox):
-    pass
-
-
 class Plot(pg.PlotWidget):
-    """Graphique fixe : la molette fait défiler la page au lieu d'être avalée par le graphique."""
+    """Graphique fixe dont on déplace les points de la courbe à la souris (comme le plugin SimHub).
+    La molette fait défiler la page au lieu d'être avalée par le graphique."""
 
-    def wheelEvent(self, ev):
-        ev.ignore()
+    def __init__(self, editor):
+        super().__init__()
+        self.editor = editor            # CurveEditor : points() et drag_point(i, x, y)
+        self.drag = None                # n° du point en cours de déplacement
+        self.setMouseTracking(True)
 
+    def _view(self, pos):
+        return self.plotItem.vb.mapSceneToView(self.mapToScene(pos))
 
-class Bar(QTabBar):
-    """Barre d'onglets que la molette ne fait pas changer (on change d'onglet au clic)."""
+    def _near(self, pos):
+        vb = self.plotItem.vb
+        for i, (x, y) in enumerate(self.editor.points()):
+            q = self.mapFromScene(vb.mapViewToScene(QPointF(x, y)))
+            if abs(q.x() - pos.x()) <= 9 and abs(q.y() - pos.y()) <= 9:
+                return i
+        return None
+
+    def mousePressEvent(self, ev):
+        pos = ev.position().toPoint()
+        if ev.button() == Qt.LeftButton and self.editor.isEnabled() and self._near(pos) is not None:
+            self.drag = self._near(pos)
+            return
+        super().mousePressEvent(ev)
+
+    def mouseMoveEvent(self, ev):
+        pos = ev.position().toPoint()
+        if self.drag is not None:
+            v = self._view(pos)
+            self.editor.drag_point(self.drag, v.x(), v.y())
+            return
+        near = self.editor.isEnabled() and self._near(pos) is not None
+        self.viewport().setCursor(Qt.SizeAllCursor if near else Qt.ArrowCursor)
+        super().mouseMoveEvent(ev)
+
+    def mouseReleaseEvent(self, ev):
+        if self.drag is not None:
+            self.drag = None
+            return
+        super().mouseReleaseEvent(ev)
 
     def wheelEvent(self, ev):
         ev.ignore()
@@ -75,7 +83,7 @@ class TabPages(QWidget):
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
-        self.bar = Bar()
+        self.bar = QTabBar()
         self.bar.setDrawBase(False)
         self.bar.setExpanding(False)
         self.bar.setFocusPolicy(Qt.NoFocus)
@@ -118,12 +126,12 @@ class PRow(QWidget):
             self.ed = QCheckBox()
             self.ed.toggled.connect(self._ch)
         elif f.kind == "enum":
-            self.ed = Combo()
+            self.ed = QComboBox()
             for v, t in f.items:
                 self.ed.addItem(t, v)
             self.ed.currentIndexChanged.connect(self._ch)
         else:
-            self.ed = DSpin()
+            self.ed = QDoubleSpinBox()
             self.ed.setDecimals(f.dec)
             self.ed.setRange(f.lo, f.hi)
             self.ed.setSingleStep(10 ** -f.dec if f.dec else 1)
@@ -202,20 +210,20 @@ class CurveEditor(QWidget):
         lay.setContentsMargins(0, 0, 0, 0)
         top = QHBoxLayout()
         top.addWidget(QLabel(T("Nombre de points")))
-        self.n = Spin()
+        self.n = QSpinBox()
         self.n.setRange(2, 11)
         self.n.valueChanged.connect(self._n_changed)
         top.addWidget(self.n)
         top.addSpacing(12)
         top.addWidget(QLabel(T("Modèle")))
-        self.preset = Combo()
+        self.preset = QComboBox()
         self.preset.addItems([T("— choisir —"), T("Linéaire"), T("Progressive (frein)"), T("Très progressive"),
                               T("Dégressive")])
         self.preset.currentIndexChanged.connect(self._preset)
         top.addWidget(self.preset)
         top.addStretch()
         lay.addLayout(top)
-        self.plot = Plot()
+        self.plot = Plot(self)
         self.plot.setMinimumHeight(170)
         self.plot.showGrid(x=True, y=True, alpha=0.15)
         self.plot.setLabel("bottom", xlabel, "%")
@@ -236,7 +244,7 @@ class CurveEditor(QWidget):
         g.addWidget(QLabel(ylabel + " %"), 1, 0)
         self.sx, self.sy = [], []
         for i in range(11):
-            a, b = Spin(), Spin()
+            a, b = QSpinBox(), QSpinBox()
             for s in (a, b):
                 s.setRange(0, 100)
                 # NoButtons + la feuille de style masquait le chiffre : flèches gardées mais réduites à 0 px
@@ -306,6 +314,21 @@ class CurveEditor(QWidget):
         self._draw()
         self.edited.emit()
 
+    def points(self):
+        n = self.n.value()
+        return [(self.sx[i].value(), self.sy[i].value()) for i in range(n)]
+
+    def drag_point(self, i, x, y):
+        """Point déplacé à la souris : le premier et le dernier restent à 0 % et 100 % de l'axe horizontal,
+        les autres restent entre leurs voisins."""
+        n = self.n.value()
+        self._block = True
+        if 0 < i < n - 1:
+            self.sx[i].setValue(max(self.sx[i - 1].value() + 1, min(self.sx[i + 1].value() - 1, round(x))))
+        self.sy[i].setValue(max(0, min(100, round(y))))
+        self._block = False
+        self._val()
+
     def _draw(self):
         n = self.n.value()
         self.curve.setData([s.value() for s in self.sx[:n]], [s.value() for s in self.sy[:n]])
@@ -356,22 +379,83 @@ class KinematicsView(QWidget):
     O pivot bas de la pédale · A début de course du chariot · B articulation du capteur sur le chariot
     C articulation du capteur sur la pédale · D bout de la pédale.
     Cotes : a = B→C, b = O→C, c horizontale = O→A, c verticale = hauteur de B, d = C→D ; la course part de A.
+    Un clic sur une cote ouvre un champ de saisie à cet endroit (signal edited).
     """
+    edited = Signal(str, int)               # (nom du champ de configuration, nouvelle valeur en mm)
+
+    # cote affichée → (champ de configuration, couleur)
+    DIMS = {"a": ("lengthPedalA_i16", "blue"), "b": ("lengthPedalB_i16", "accent"),
+            "c horiz.": ("lengthPedalCHorizontal_i16", "dim"), "c vert.": ("lengthPedalCVertical_i16", "dim"),
+            "d": ("lengthPedalD_i16", "accent"), "course": ("lengthPedalTravel_i16", "bad")}
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.cfg = None
+        self.modified = set()       # champs modifiés et pas encore envoyés (affichés en ambre)
         self.live = None            # position de la pédale 0..1 (dans la plage début/fin de course)
-        self.setMinimumHeight(260)
+        self.hits = {}              # champ → zone cliquable de sa valeur
+        self.setMinimumHeight(300)
+        self.setMouseTracking(True)
+        self.editor = QSpinBox(self)
+        self.editor.setSuffix(" mm")
+        self.editor.setAlignment(Qt.AlignCenter)
+        self.editor.setButtonSymbols(QSpinBox.NoButtons)
+        self.editor.hide()
+        self.editor.editingFinished.connect(self._commit)
+        for w in (self.editor, self.editor.lineEdit()):      # Échap peut arriver sur l'un ou l'autre
+            w.installEventFilter(self)
+        self._editing = None
 
-    def set_cfg(self, cfg):
+    def set_cfg(self, cfg, modified=()):
         self.cfg = cfg
+        self.modified = set(modified)
         self.update()
 
     def set_live(self, r01):
         self.live = r01
         self.update()
 
+    # ------------------------------------------------------------ saisie
+    def mousePressEvent(self, ev):
+        for name, r in self.hits.items():
+            if r.contains(ev.position()):
+                self._open(name, r)
+                return
+        super().mousePressEvent(ev)
+
+    def mouseMoveEvent(self, ev):
+        over = any(r.contains(ev.position()) for r in self.hits.values())
+        self.setCursor(Qt.PointingHandCursor if over else Qt.ArrowCursor)
+
+    def _open(self, name, r):
+        f = PP.PBY[name]
+        self._editing = name
+        self.editor.setRange(int(f.lo), int(f.hi))
+        self.editor.setValue(int(self.cfg[name]))
+        self._place(r)
+        self.editor.setToolTip(f.label)
+        self.editor.show()
+        self.editor.setFocus()
+        self.editor.selectAll()
+
+    def _place(self, r):
+        self.editor.setGeometry(int(r.x()) - 4, int(r.center().y()) - 14, max(96, int(r.width()) + 16), 28)
+
+    def _commit(self):
+        name, self._editing = self._editing, None
+        self.editor.hide()
+        if name is not None and self.cfg is not None and self.editor.value() != self.cfg[name]:
+            self.edited.emit(name, self.editor.value())
+
+    def eventFilter(self, obj, ev):
+        if obj in (self.editor, self.editor.lineEdit()) and ev.type() == QEvent.KeyPress \
+                and ev.key() == Qt.Key_Escape:
+            self._editing = None            # Échap : on referme sans rien changer
+            self.editor.hide()
+            return True
+        return super().eventFilter(obj, ev)
+
+    # ------------------------------------------------------------ géométrie
     def _angle(self, sled):
         """Angle de la pédale (rad) pour une position du chariot (mm), comme le plugin."""
         c = self.cfg
@@ -398,6 +482,7 @@ class KinematicsView(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         p.fillRect(self.rect(), QColor(C["bg"]))
+        self.hits = {}
         if not self.cfg:
             p.setPen(QColor(C["dim"]))
             p.drawText(self.rect(), Qt.AlignCenter, T("Pas de configuration lue"))
@@ -410,9 +495,10 @@ class KinematicsView(QWidget):
         sled = tr * (start + live * (end - start))
         th = self._angle(sled)
         if th is None:
+            th = math.pi / 2                # cotes impossibles : on dessine quand même pour pouvoir les corriger
             p.setPen(QColor(C["bad"]))
-            p.drawText(self.rect(), Qt.AlignCenter, T("Cotes impossibles : la pédale ne peut pas se monter ainsi"))
-            return
+            p.drawText(self.rect().adjusted(0, 6, -8, 0), Qt.AlignRight | Qt.AlignTop,
+                       T("Cotes impossibles : la pédale ne peut pas se monter ainsi"))
         # points en mm (y vers le haut)
         O = (0.0, 0.0)
         A = (float(ch), 0.0)
@@ -422,11 +508,11 @@ class KinematicsView(QWidget):
         pts = [O, A, B, Cp, D, (ch + tr, 0.0)]
         xs, ys = [q[0] for q in pts], [q[1] for q in pts]
         x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
-        m = 34
-        sc = min((self.width() - 2 * m) / max(1.0, x1 - x0), (self.height() - 2 * m) / max(1.0, y1 - y0))
+        mx, my = 40, 36
+        sc = min((self.width() - 2 * mx - 110) / max(1.0, x1 - x0), (self.height() - 2 * my) / max(1.0, y1 - y0))
 
         def P(q):
-            return QPointF(m + (q[0] - x0) * sc, self.height() - m - (q[1] - y0) * sc)
+            return QPointF(mx + (q[0] - x0) * sc, self.height() - my - (q[1] - y0) * sc)
 
         # sol / rail et course du chariot
         p.setPen(QPen(QColor(C["line"]), 2))
@@ -435,19 +521,13 @@ class KinematicsView(QWidget):
         p.drawLine(P((ch + tr * start, 0)), P((ch + tr * end, 0)))
         p.setPen(QPen(QColor(C["bad"]).darker(170), 2, Qt.DashLine))
         p.drawLine(P(A), P((ch + tr, 0)))
-        # cotes
-        seg = [(O, A, "c horiz.", C["dim"]), ((B[0], 0.0), B, "c vert.", C["dim"]), (B, Cp, "a", C["blue"]),
-               (O, Cp, "b", C["accent"]), (Cp, D, "d", C["accent"])]
-        for q1, q2, name, col in seg:
-            p.setPen(QPen(QColor(col), 3 if name in ("a", "b", "d") else 1.5,
-                          Qt.SolidLine if name in ("a", "b", "d") else Qt.DashLine, Qt.RoundCap))
+        # segments
+        seg = {"c horiz.": (O, A), "c vert.": ((B[0], 0.0), B), "a": (B, Cp), "b": (O, Cp), "d": (Cp, D)}
+        for name, (q1, q2) in seg.items():
+            col = C[self.DIMS[name][1]]
+            solid = name in ("a", "b", "d")
+            p.setPen(QPen(QColor(col), 3 if solid else 1.5, Qt.SolidLine if solid else Qt.DashLine, Qt.RoundCap))
             p.drawLine(P(q1), P(q2))
-        vals = {"a": a, "b": b, "c horiz.": ch, "c vert.": cv, "d": d}
-        p.setFont(QFont(p.font().family(), 9))
-        for q1, q2, name, col in seg:
-            mid = (P(q1) + P(q2)) / 2
-            p.setPen(QColor(col))
-            p.drawText(QRectF(mid.x() + 6, mid.y() - 18, 90, 16), Qt.AlignLeft, f"{name} = {vals[name]}")
         # articulations
         p.setFont(QFont(p.font().family(), 10, QFont.Bold))
         off = {"O": (-16, 4), "A": (-4, 18), "B": (8, 4), "C": (-18, -6), "D": (-18, -6)}
@@ -457,9 +537,26 @@ class KinematicsView(QWidget):
             p.setBrush(QColor(C["panel"]))
             p.drawEllipse(pt, 5, 5)
             p.drawText(pt + QPointF(*off[name]), name)
-        p.setFont(QFont(p.font().family(), 8))
-        p.setPen(QColor(C["bad"]))
-        p.drawText(P((ch + tr / 2, 0)) + QPointF(-30, 16), T("course {v} mm").format(v=tr))
+        # valeurs cliquables
+        anchors = {name: (P(q1) + P(q2)) / 2 + QPointF(8, -12) for name, (q1, q2) in seg.items()}
+        anchors["c horiz."] = (P(O) + P(A)) / 2 + QPointF(-40, -24)
+        anchors["course"] = P((ch + tr / 2, 0)) + QPointF(-40, 8)
+        font = QFont(p.font().family(), 9)
+        p.setFont(font)
+        fm = p.fontMetrics()
+        for name, at in anchors.items():
+            field, colkey = self.DIMS[name]
+            txt = f"{T('course') if name == 'course' else name} = {c[field]} mm"
+            r = QRectF(at.x(), at.y(), fm.horizontalAdvance(txt) + 14, fm.height() + 6)
+            mod = field in self.modified
+            p.setPen(QPen(QColor(C["accent"] if mod else C["line"]), 1))
+            p.setBrush(QColor(C["panel2"]))
+            p.drawRoundedRect(r, 4, 4)
+            p.setPen(QColor(C["accent"] if mod else C[colkey] if colkey != "dim" else C["text"]))
+            p.drawText(r, Qt.AlignCenter, txt)
+            self.hits[field] = r
+        if self._editing in self.hits:            # le schéma a bougé pendant la saisie : le champ suit sa cote
+            self._place(self.hits[self._editing])
 
 
 class PedalsTab(QWidget):
@@ -482,7 +579,7 @@ class PedalsTab(QWidget):
         root.setSpacing(8)
 
         # ------------------------------------------- onglets des pédales
-        self.sel = Bar()
+        self.sel = QTabBar()
         self.sel.setExpanding(False)
         self.sel.setDrawBase(False)
         self.sel.setStyleSheet("QTabBar::tab { font-size: 12pt; padding: 10px 26px; }")
@@ -581,15 +678,24 @@ class PedalsTab(QWidget):
         self.kin_info = hint("")
 
         pages = self._tab_group(il, PP.TABS_CURVE)
-        pages[PP.G_CURVE].addWidget(hint(T("Force demandée selon la course. Le point bleu montre la pédale en direct.")))
+        pages[PP.G_CURVE].addWidget(hint(T("Force demandée selon la course. Fais glisser les points orange pour régler la courbe ; "
+                                           "le point bleu montre la pédale en direct.")))
         pages[PP.G_CURVE].addWidget(self.curve, 1)
-        pages[PP.G_KIN].insertWidget(0, self.kin, 1)
-        pages[PP.G_KIN].insertWidget(1, self.kin_info)
-        pages[PP.G_KIN].insertWidget(2, hint(T(
+        # les cotes se saisissent sur le schéma : leurs lignes restent comme support des valeurs, cachées
+        for f in PP.PFIELDS:
+            if f.group == PP.G_KIN:
+                self.rows[f.name].hide()
+        self.kin.edited.connect(lambda name, v: self.rows[name].ed.setValue(v))
+        pages[PP.G_KIN].insertWidget(0, hint(T("Clique sur une cote du schéma pour la modifier (Entrée pour valider, "
+                                               "Échap pour annuler). Les cotes modifiées sont en orange.")))
+        pages[PP.G_KIN].insertWidget(1, self.kin, 1)
+        pages[PP.G_KIN].insertWidget(2, self.kin_info)
+        pages[PP.G_KIN].insertWidget(3, hint(T(
             "O : pivot bas de la pédale · A : début de la course du chariot · B : articulation du capteur de force "
             "sur le chariot · C : articulation du capteur sur la pédale · D : bout de la pédale (appui du pied). "
             "Le trait rouge est la course utilisée (entre début et fin de course).")))
-        pages[PP.G_JOY].addWidget(hint(T("Valeur envoyée au jeu selon la force (ou la course). Linéaire par défaut.")))
+        pages[PP.G_JOY].addWidget(hint(T("Valeur envoyée au jeu selon la force (ou la course). Linéaire par défaut. "
+                                         "Fais glisser les points pour la régler.")))
         pages[PP.G_JOY].addWidget(self.joy, 1)
 
         self._tab_group(il, PP.TABS_GENERAL)
@@ -656,7 +762,11 @@ class PedalsTab(QWidget):
         return pages
 
     # ------------------------------------------------------------ sélection
+    def _roles(self):
+        return [(p.port, p.tag) for p in self.m.pedals()]
+
     def _refresh_list(self):
+        self._roles_shown = self._roles()
         cur = self.port
         self.sel.blockSignals(True)
         while self.sel.count():
@@ -743,6 +853,9 @@ class PedalsTab(QWidget):
         return "\n".join(parts)
 
     def _status(self):
+        # une pédale qui change de rôle (Rôle de la pédale enregistré) doit changer d'onglet
+        if self._roles() != self._roles_shown:
+            self._refresh_list()
         info = self.m.info(self.port) if self.port else None
         if info:
             self.status.setText(self._status_text(info))
@@ -809,7 +922,8 @@ class PedalsTab(QWidget):
     def _dirty(self):
         n = sum(r.modified() for r in self.rows.values()) + int(self.curve.modified()) + int(self.joy.modified())
         self.b_apply.setText(T("Appliquer ({n})").format(n=n) if n else T("Appliquer"))
-        self.kin.set_cfg(self._effective())     # le schéma suit les cotes en cours de saisie
+        # le schéma suit les cotes en cours de saisie et montre celles pas encore envoyées
+        self.kin.set_cfg(self._effective(), [n for n, r in self.rows.items() if r.modified()])
         self._kin_text()
 
     def send(self, store):

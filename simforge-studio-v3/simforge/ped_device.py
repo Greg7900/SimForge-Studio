@@ -124,6 +124,7 @@ class FakePedalPort:
             elif f.ptype == PP.T_CONFIG and f.data:
                 if not PP.plausible(f.data):
                     self.cfg = dict(f.data)
+                    self.tag = self.cfg["pedalType_u8"]        # comme le firmware : le rôle suit la configuration
                     self.out += b"Updating pedal config from serial\r\n"
                     if f.store:
                         self.out += b"config stored to EEPROM\r\n"

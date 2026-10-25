@@ -3,13 +3,37 @@ from __future__ import annotations
 
 import math
 
-from PySide6.QtCore import Qt, Signal, QRectF, QPointF
+from PySide6.QtCore import Qt, Signal, QRectF, QPointF, QObject, QEvent
 from PySide6.QtGui import QPainter, QColor, QPen, QBrush, QFont
 from PySide6.QtWidgets import (QFrame, QLabel, QVBoxLayout, QHBoxLayout, QWidget, QSlider,
-                               QSpinBox, QCheckBox, QComboBox, QSizePolicy)
+                               QSpinBox, QCheckBox, QComboBox, QSizePolicy, QApplication, QAbstractSpinBox,
+                               QAbstractSlider, QScrollBar, QTabBar, QAbstractScrollArea)
 
 from .theme import C
 from .i18n import T
+
+
+class WheelGuard(QObject):
+    """Filtre global : la molette ne modifie plus un champ (nombre, liste, curseur) ni un onglet simplement survolé,
+    elle fait défiler la page. Un champ cliqué (qui a le focus) garde la molette."""
+
+    TYPES = (QAbstractSpinBox, QComboBox, QAbstractSlider, QTabBar)
+
+    def eventFilter(self, obj, ev):
+        if ev.type() != QEvent.Wheel or not isinstance(obj, self.TYPES) or isinstance(obj, QScrollBar) \
+                or obj.hasFocus():
+            return False
+        p = obj.parentWidget()
+        while p is not None and not isinstance(p, QAbstractScrollArea):
+            p = p.parentWidget()
+        if p is not None:
+            QApplication.sendEvent(p.viewport(), ev)
+        return True
+
+
+def install_wheel_guard(app):
+    app._wheel_guard = WheelGuard(app)
+    app.installEventFilter(app._wheel_guard)
 
 
 def card(title: str = "", parent=None):

@@ -1883,4 +1883,12 @@ EN = {
         'Servo',
     'course {v} mm':
         'travel {v} mm',
+    'Clique sur une cote du schéma pour la modifier (Entrée pour valider, Échap pour annuler). Les cotes modifiées sont en orange.':
+        'Click a dimension on the drawing to change it (Enter to confirm, Esc to cancel). Changed dimensions are shown in orange.',
+    'course':
+        'travel',
+    'Force demandée selon la course. Fais glisser les points orange pour régler la courbe ; le point bleu montre la pédale en direct.':
+        'Requested force versus travel. Drag the orange points to shape the curve; the blue dot shows the pedal live.',
+    'Valeur envoyée au jeu selon la force (ou la course). Linéaire par défaut. Fais glisser les points pour la régler.':
+        'Value sent to the game versus force (or travel). Linear by default. Drag the points to shape it.',
 }
