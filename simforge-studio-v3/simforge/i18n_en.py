@@ -961,8 +961,6 @@ EN = {
         'Hats (POV)',
     'Périphérique :':
         'Device:',
-    'Lecture DirectInput, comme un jeu. Le volant FFBeast apparaît sous le nom « FFBeast Wheel ». « Pas » = variation entre deux lectures (≈100 Hz) : au repos il doit être nul ou de quelques unités.':
-        'DirectInput reading, like a game. The FFBeast wheel shows up as "FFBeast Wheel". "Step" = change between two reads (≈100 Hz): at rest it should be zero or a few units.',
     'Aucun joystick détecté':
         'No joystick detected',
     'Valeur':
@@ -1770,8 +1768,10 @@ EN = {
         'No pedal detected. Plug the pedal in through its "UART" USB port (CH343/CP210x chip) and close SimHub.',
     'états/s':
         'states/s',
-    "bip d'identification":
-        'identify beep',
+    "Indisponible par câble USB : le firmware de la pédale ne bipe que sur ordre du récepteur sans fil (ESP-NOW). "
+    "Par USB, chaque pédale a déjà son propre port COM.":
+        "Not available over the USB cable: the pedal firmware only beeps when the wireless receiver (ESP-NOW) asks it "
+        "to. Over USB, each pedal already has its own COM port.",
     "Tester l'ABS (1 s)":
         'Test ABS (1 s)',
     "Déclenche l'effet ABS pendant 1 seconde, sans jeu : appuie sur la pédale.":
@@ -2005,4 +2005,6 @@ EN = {
         'non-numeric values: {l}',
     'Écriture impossible : {e}':
         'Cannot write: {e}',
+    "Lecture DirectInput, comme un jeu. Chaque pédale est une manette séparée (« FFB_Pedal_Brake », « FFB_Pedal_Throttle », « FFB_Pedal_Clutch ») qui n'apparaît que si son port USB natif de l'ESP32-S3 est branché : le port série (puce CH343) sert seulement aux réglages. « Pas » = variation entre deux lectures (≈100 Hz) : au repos il doit être nul ou de quelques unités.":
+        'DirectInput reading, like a game. Each pedal is a separate controller (“FFB_Pedal_Brake”, “FFB_Pedal_Throttle”, “FFB_Pedal_Clutch”) that only shows up when the ESP32-S3 native USB port is plugged in: the serial port (CH343 chip) is only used for settings. “Step” = change between two reads (≈100 Hz): at rest it should be zero or a few units.',
 }

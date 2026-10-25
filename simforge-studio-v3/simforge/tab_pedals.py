@@ -597,9 +597,11 @@ class PedalsTab(QWidget):
         c, l = card(T("Actions"))
         g = QGridLayout()
         g.setSpacing(6)
+        # le firmware de ChrGri ne traite le bip (action 11) que reçu par ESP-NOW, pas par le port série
         self.b_beep = QPushButton(T("Identifier (bip)"))
-        self.b_beep.clicked.connect(lambda: self.m.action(self.port, T("bip d'identification"),
-                                                         systemAction_u8=PP.ACT_BEEP))
+        self.b_beep.setEnabled(False)
+        self.b_beep.setToolTip(T("Indisponible par câble USB : le firmware de la pédale ne bipe que sur ordre du "
+                                 "récepteur sans fil (ESP-NOW). Par USB, chaque pédale a déjà son propre port COM."))
         self.b_read = QPushButton(T("Relire"))
         self.b_read.clicked.connect(self._reread)
         self.b_exp = QPushButton(T("Exporter…"))
@@ -889,7 +891,7 @@ class PedalsTab(QWidget):
             self.m.request_config(port)
 
     def _enable(self, on):
-        for w in (self.b_apply, self.b_save, self.b_read, self.b_beep, self.b_exp, self.b_imp, self.b_abs,
+        for w in (self.b_apply, self.b_save, self.b_read, self.b_exp, self.b_imp, self.b_abs,
                   self.diag_on):
             w.setEnabled(on)
         for r in self.rows.values():

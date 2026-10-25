@@ -91,9 +91,11 @@ class JoyTab(QWidget):
         right.addWidget(c3, 0)
         mid.addLayout(right, 2)
         root.addLayout(mid, 1)
-        root.addWidget(hint(T("Lecture DirectInput, comme un jeu. Le volant FFBeast apparaît sous le nom "
-                            "« FFBeast Wheel ». « Pas » = variation entre deux lectures (≈100 Hz) : "
-                            "au repos il doit être nul ou de quelques unités.")))
+        root.addWidget(hint(T(
+            "Lecture DirectInput, comme un jeu. Chaque pédale est une manette séparée (« FFB_Pedal_Brake », "
+            "« FFB_Pedal_Throttle », « FFB_Pedal_Clutch ») qui n'apparaît que si son port USB natif de l'ESP32-S3 "
+            "est branché : le port série (puce CH343) sert seulement aux réglages. « Pas » = variation entre deux "
+            "lectures (≈100 Hz) : au repos il doit être nul ou de quelques unités.")))
 
         self.combo.currentIndexChanged.connect(self.open_index)
         self.refresh_devices()
@@ -110,7 +112,9 @@ class JoyTab(QWidget):
         self.combo.addItems(names)
         idx = next((i for i, n in enumerate(names) if n == cur), -1)
         if idx < 0:
-            idx = next((i for i, n in enumerate(names) if "ffbeast" in n.lower()), 0 if names else -1)
+            # volant Odrive-Wheel de préférence (avant : « ffbeast », nom du volant de la V1)
+            idx = next((i for i, n in enumerate(names) if "odrive" in n.lower() or "wheel" in n.lower()),
+                       0 if names else -1)
         self.combo.blockSignals(False)
         if idx >= 0:
             self.combo.setCurrentIndex(idx)

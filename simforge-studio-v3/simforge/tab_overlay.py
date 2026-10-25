@@ -9,10 +9,10 @@ import json
 import time
 from collections import deque
 
-from PySide6.QtCore import Qt, QTimer, QPoint
-from PySide6.QtGui import QColor, QPainter, QFont
+from PySide6.QtCore import Qt, QTimer, QPoint, QSize, QEvent
+from PySide6.QtGui import QColor, QPainter, QFont, QPixmap
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QPushButton, QLabel,
-                               QCheckBox, QComboBox, QSpinBox, QApplication, QScrollArea)
+                               QCheckBox, QComboBox, QSpinBox, QApplication, QScrollArea, QFrame)
 
 from . import ow_protocol as P
 from . import i18n
@@ -205,6 +205,60 @@ class OverlayPanel(QWidget):
         p.drawLine(int(mid), int(y - 2), int(mid), int(y + h + 2))
 
 
+
+class OverlayPreview(QWidget):
+    """Aperçu dans la page : le panneau est dessiné à sa taille réelle, réduit jusqu'à 70 % pour tenir en largeur,
+    et au-delà la zone défile (avant, en disposition horizontale, il était coupé après les premières mesures)."""
+    MIN_SCALE = 0.7
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.panel = OverlayPanel(self)         # modèle, jamais affiché tel quel
+        self.panel.hide()
+        self.area = QScrollArea()               # c'est elle qu'on place dans la page
+        self.area.setWidget(self)
+        self.area.setWidgetResizable(False)
+        self.area.setFrameShape(QFrame.NoFrame)
+        self.area.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        self.area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.area.setStyleSheet("QScrollArea, QScrollArea > QWidget > QWidget { background: transparent; }")
+        self.area.viewport().installEventFilter(self)
+
+    def eventFilter(self, obj, ev):
+        if ev.type() == QEvent.Resize:
+            self._fit()
+        return False
+
+    def set_rows(self, rows):
+        self.panel.rows = rows
+        self._fit()
+        self.update()
+
+    def _fit(self):
+        n = self.panel.sizeHint()
+        if n.width() <= 0 or n.height() <= 0:
+            return
+        k = min(1.0, max(self.MIN_SCALE, self.area.viewport().width() / n.width()))
+        size = QSize(int(n.width() * k), int(n.height() * k))
+        if self.size() != size:
+            self.setFixedSize(size)
+        sb = self.area.horizontalScrollBar().sizeHint().height() if size.width() > self.area.viewport().width() else 0
+        self.area.setFixedHeight(size.height() + sb)
+
+    def paintEvent(self, _):
+        n = self.panel.sizeHint()
+        if n.width() <= 0 or n.height() <= 0:
+            return
+        self.panel.resize(n)
+        dpr = self.devicePixelRatioF()
+        pm = QPixmap(int(n.width() * dpr), int(n.height() * dpr))
+        pm.setDevicePixelRatio(dpr)
+        pm.fill(Qt.transparent)
+        self.panel.render(pm)
+        p = QPainter(self)
+        p.setRenderHint(QPainter.SmoothPixmapTransform)
+        p.drawPixmap(self.rect(), pm)
+
 class OverlayWindow(QWidget):
     def __init__(self, on_moved):
         super().__init__(None)
@@ -338,14 +392,14 @@ class OverlayTab(QWidget):
         lab = QLabel(T("Aperçu"))
         lab.setObjectName("cardTitle")
         l.addWidget(lab)
-        self.preview = OverlayPanel()
+        self.preview = OverlayPreview()
         prev_box = QWidget()
         prev_box.setObjectName("prevbox")
         prev_box.setAttribute(Qt.WA_StyledBackground, True)
         prev_box.setStyleSheet(f"QWidget#prevbox {{ background: {C['panel2']}; border-radius: 6px; }}")
         pl = QVBoxLayout(prev_box)
         pl.setContentsMargins(20, 20, 20, 20)
-        pl.addWidget(self.preview, 0, Qt.AlignLeft | Qt.AlignTop)
+        pl.addWidget(self.preview.area)
         pl.addStretch()
         l.addWidget(prev_box, 1)
         right.addWidget(c, 1)
@@ -394,7 +448,7 @@ class OverlayTab(QWidget):
         self._save()
 
     def _apply_style(self):
-        for p in (self.preview, self.win.panel):
+        for p in (self.preview.panel, self.win.panel):
             p.font_pt = self.cfg["font"]
             p.horizontal = self.cfg["horizontal"]
             p.curves = self.cfg["curves"]

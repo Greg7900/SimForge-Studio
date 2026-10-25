@@ -139,8 +139,6 @@ class FakePedalPort:
                 a = PP._unpack(PP.ACTION_FIELDS, PP.ACTION_S, f.raw[6:-4])
                 if a["returnPedalConfig_u8"]:
                     self.out += PP.build_config(self.cfg, tag=self.tag)
-                if a["systemAction_u8"] == PP.ACT_BEEP:
-                    self.out += b"beep\r\n"
                 if a["systemAction_u8"] == PP.ACT_RESTART:
                     self.out += b"ESP restart by user request\r\nSetup end\r\n"
             elif f.ptype == PP.T_CONFIG and f.data:
