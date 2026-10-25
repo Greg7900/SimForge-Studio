@@ -1616,8 +1616,12 @@ EN = {
         'mm/rev',
     'Valeur écrite sur le capteur (ex. 100 kg).':
         'Value printed on the load cell (e.g. 100 kg).',
-    '0 = 10 Ω par défaut.':
-        '0 = 10 Ω default.',
+    "Valeur marquée sur la résistance de freinage (10 Ω au réglage d'usine, 0 = 5 Ω). Le firmware en déduit la "
+    "puissance qu'elle absorbe et la vitesse de remontée permise : trop basse, la pédale remonte trop vite et la "
+    "tension du servo grimpe.":
+        "Value marked on the brake resistor (10 Ω factory setting, 0 = 5 Ω). The firmware derives from it the power "
+        "the resistor absorbs and the allowed return speed: too low, the pedal comes back too fast and the servo "
+        "voltage climbs.",
     'Valeur brute du firmware ; 0 = jamais.':
         'Raw firmware value; 0 = never.',
     'force maxi entre 1 et 500 kg':

@@ -346,7 +346,10 @@ PFIELDS = [
            items=[(0, T("résistance interne du servo")), (1, T("+ résistance externe pilotée")),
                   (2, T("circuit matériel seul"))], group=G_GEN),
     PField("brakeResistorResistance_Ohm_u8", T("Valeur de la résistance externe"), lo=0, hi=255, unit="Ω",
-           group=G_GEN, tip=T("0 = 10 Ω par défaut.")),
+           group=G_GEN,
+           tip=T("Valeur marquée sur la résistance de freinage (10 Ω au réglage d'usine, 0 = 5 Ω). Le firmware en "
+                 "déduit la puissance qu'elle absorbe et la vitesse de remontée permise : trop basse, la pédale "
+                 "remonte trop vite et la tension du servo grimpe.")),
     PField("servoIdleTimeout_u8", T("Mise en veille du servo"), group=G_SERVO,
            tip=T("Valeur brute du firmware ; 0 = jamais.")),
     PField("wakeOnPluginOnly_u8", T("Au démarrage"), "enum",
