@@ -72,10 +72,10 @@ class SerialPort:
         s.timeout = 0.02
         s.write_timeout = 0.5
         # puce série (CH343…) : DTR/RTS au repos, sinon le circuit d'auto-reset redémarre l'ESP32.
-        # USB natif (firmware « un câble ») : DTR levé, sinon le firmware (TinyUSB) n'envoie rien ; pas de reset
-        # possible par DTR/RTS, il est désactivé dans le firmware
+        # USB natif (firmware « un câble ») : DTR et RTS levés, sinon le firmware n'envoie rien (USBCDC d'Arduino ne
+        # se dit « connecté » qu'avec les deux) ; pas de reset possible par DTR/RTS, il est désactivé dans le firmware
         s.dtr = native
-        s.rts = False
+        s.rts = native
         s.open()
         self.s = s
 
