@@ -321,8 +321,15 @@ PFIELDS = [
     PField("coulombFrictionIn0p1N_u8", T("Frottement simulé"), unit="N", scale=0.1, dec=1, group=G_DYN),
     PField("endstopStiffness_kg_mm_u8", T("Raideur de la butée"), unit="kg/mm", group=G_DYN),
     PField("endstopTravelRange_mm_u8", T("Zone de la butée"), unit="mm", group=G_DYN),
-    PField("kfModelNoise_u8", T("Filtre de force (Kalman) : bruit du modèle"), group=G_FILT),
-    PField("kfModelOrder_u8", T("Filtre de force : ordre du modèle"), group=G_FILT),
+    PField("kfModelOrder_u8", T("Type de filtre du capteur de force"), "enum",
+           items=[(0, T("Kalman (vitesse)")), (1, T("Kalman (accélération)")), (2, T("Exponentiel")),
+                  (3, T("Aucun")), (4, T("IMM adaptatif (maintien/mouvement) — conseillé"))], group=G_FILT,
+           tip=T("IMM adaptatif : lisse fort quand le pied tient la pédale immobile, réagit vite quand il bouge. "
+                 "C'est le filtre fait contre la vibration à faible force (doc ChrGri : IMM_Loadcell_Filter.md).")),
+    PField("kfModelNoise_u8", T("Vitesse du filtre (1 = doux … 255 = rapide)"), lo=1, hi=255, group=G_FILT,
+           tip=T("Plus haut : la pédale suit plus vite le pied mais le bruit du capteur passe davantage "
+                 "(vibration, surtout quand la pédale bouge doucement). Plus bas : plus calme mais plus lourd.\n"
+                 "Avec le filtre IMM, c'est la vitesse en mouvement : 1 ≈ 5 Hz, 128 ≈ 17 Hz, 255 ≈ 60 Hz.")),
     PField("kfJoystick_u8", T("Filtre de l'axe de jeu"), group=G_FILT),
     PField("kfModelNoiseJoystick_u8", T("Filtre de l'axe de jeu : bruit"), group=G_FILT),
     PField("minForceForEffects_u8", T("Force mini pour les effets"), group=G_GLOB),

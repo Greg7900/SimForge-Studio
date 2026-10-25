@@ -1897,4 +1897,22 @@ EN = {
         'Selects the controller axis and the effects received. An already assigned pedal only changes role with “Save to pedal”.',
     'le 2e point de la courbe de force est à 1 % : le firmware passerait la pédale en mode palonnier (avion). Mets-le à 0 ou 2 % ou plus.':
         'the 2nd point of the force curve is at 1 %: the firmware would switch the pedal to rudder (flight) mode. Set it to 0 or to 2 % or more.',
+    'Type de filtre du capteur de force':
+        'Load cell filter type',
+    'Kalman (vitesse)':
+        'Kalman (velocity)',
+    'Kalman (accélération)':
+        'Kalman (acceleration)',
+    'Exponentiel':
+        'Exponential',
+    'Aucun':
+        'None',
+    'IMM adaptatif (maintien/mouvement) — conseillé':
+        'IMM adaptive (hold/move) — recommended',
+    "IMM adaptatif : lisse fort quand le pied tient la pédale immobile, réagit vite quand il bouge. C'est le filtre fait contre la vibration à faible force (doc ChrGri : IMM_Loadcell_Filter.md).":
+        'IMM adaptive: smooths strongly while the foot holds the pedal still, reacts fast when it moves. It is the filter made against vibration at light force (ChrGri docs: IMM_Loadcell_Filter.md).',
+    'Vitesse du filtre (1 = doux … 255 = rapide)':
+        'Filter speed (1 = smooth … 255 = fast)',
+    "Plus haut : la pédale suit plus vite le pied mais le bruit du capteur passe davantage (vibration, surtout quand la pédale bouge doucement). Plus bas : plus calme mais plus lourd.\nAvec le filtre IMM, c'est la vitesse en mouvement : 1 ≈ 5 Hz, 128 ≈ 17 Hz, 255 ≈ 60 Hz.":
+        'Higher: the pedal follows the foot faster but more load cell noise gets through (vibration, mostly when the pedal moves slowly). Lower: calmer but heavier.\nWith the IMM filter, this is the speed while moving: 1 ≈ 5 Hz, 128 ≈ 17 Hz, 255 ≈ 60 Hz.',
 }
