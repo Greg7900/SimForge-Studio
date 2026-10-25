@@ -608,8 +608,9 @@ class PedalsTab(QWidget):
         self.b_imp.clicked.connect(self.import_)
         # restent utilisables même sans configuration lue : c'est justement quand la pédale est bloquée qu'on en a besoin
         self.b_wake = QPushButton(T("Réveiller"))
-        self.b_wake.setToolTip(T("Réveille le servo mis en veille (LED rouge, deux bips après la « Mise en veille du "
-                                 "servo » de l'onglet Servo). Appuyer fort sur la pédale le réveille aussi."))
+        self.b_wake.setToolTip(T("Sort la pédale de l'attente du logiciel au démarrage (LED bleue, réglage « Au "
+                                 "démarrage : attend le logiciel »). Après la « Mise en veille du servo » (LED rouge), "
+                                 "seul un appui franc sur la pédale la réveille."))
         self.b_wake.clicked.connect(lambda: self.m.action(self.port, T("réveil de la pédale"),
                                                          systemAction_u8=PP.ACT_WAKEUP))
         self.b_restart = QPushButton(T("Redémarrer"))

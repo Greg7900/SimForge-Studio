@@ -1935,4 +1935,6 @@ EN = {
         'Restart the pedal? Settings that were not saved will be lost.',
     'redémarrage de la pédale':
         'pedal restart',
+    "Sort la pédale de l'attente du logiciel au démarrage (LED bleue, réglage « Au démarrage : attend le logiciel »). Après la « Mise en veille du servo » (LED rouge), seul un appui franc sur la pédale la réveille.":
+        'Takes the pedal out of waiting for the software at power-up (blue LED, “At power-up: waits for the software”). After the “Servo sleep” time (red LED), only a firm press on the pedal wakes it up.',
 }

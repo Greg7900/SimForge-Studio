@@ -120,7 +120,7 @@ class FakePedalPort:
                 if a["systemAction_u8"] == PP.ACT_BEEP:
                     self.out += b"beep\r\n"
                 if a["systemAction_u8"] == PP.ACT_RESTART:
-                    self.out += b"ESP restart by user request\r\n"
+                    self.out += b"ESP restart by user request\r\nSetup end\r\n"
             elif f.ptype == PP.T_CONFIG and f.data:
                 if not PP.plausible(f.data):
                     self.cfg = dict(f.data)
@@ -209,6 +209,10 @@ class PedalLink(QThread):
                     info.bad_crc = self.parser.bad_crc
                     for line in self.parser.lines:
                         mgr.text.emit(info.port, line)
+                        # la pédale a redémarré sans que le port se ferme (puce série USB) : on la réveille à nouveau
+                        # (sinon, réglée sur « attend le logiciel », elle reste en veille) et on relit sa configuration
+                        if "Setup end" in line or "Pedal in STANDBY" in line:
+                            asked = False
                     self.parser.lines.clear()
                 if now - t_rate >= 1.0:
                     info.rate = n_states / (now - t_rate)
