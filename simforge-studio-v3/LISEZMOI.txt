@@ -1,0 +1,94 @@
+SimForge Studio V3.0 — volant Odrive-Wheel + pédales actives ChrGri dans un seul logiciel
+=========================================================================================
+
+Volant : carte ODrive v3.6 (MKS ODrive S 56 V, MKS XDrive Mini, ODESC 4.2…) flashée avec le firmware
+Odrive-Wheel. Pour le firmware FFBeast, garde SimForge Studio V1.0.
+Pédales : pédales actives DIY de ChrGri (DIY-Sim-Racing-FFB-Pedal), PCB V6, ESP32-S3, en USB.
+Le firmware des pédales est fourni (dossier firmware) et se flashe depuis SimForge.
+
+DÉMARRER
+  1. Double-clic sur  "SimForge Studio V3.bat"
+     Le premier lancement installe tout dans le dossier .venv (2-3 min, Python 3.9+ requis).
+  2. Pour essayer sans la carte :  "SimForge Studio V3 (demo).bat"  (carte simulée).
+  3. Pour fabriquer un .exe autonome :  build_exe.bat  (après un premier lancement).
+  Langue : anglais par défaut, français via le sélecteur en haut à droite.
+
+  Le port série ne s'ouvre que dans un programme à la fois : ferme l'outil web Odrive-Wheel,
+  odrivetool et le plugin SimHub Odrive-Wheel pendant que SimForge est ouvert.
+
+LES DEUX LIAISONS USB
+  Voyant 1 = port série : lecture/écriture des réglages, commandes, console.
+  Voyant 2 = HID : télémétrie à 1 kHz (position, vitesse, couple en N·m, courant moteur, tension et
+             courant du bus, courant de la résistance de freinage, température, état, erreurs).
+
+MENU DE GAUCHE
+  Vue d'ensemble  Volant et pédales d'un coup d'œil (état, angle, couple, batterie ; course, force en kg
+                  et axe envoyé au jeu pour chaque pédale), avec un bouton vers la page qui règle chaque élément.
+
+  VOLANT
+  Mise en route   Calibrations pas à pas avec vérification : précautions, alimentation, erreurs,
+                  calibration moteur (résistance/inductance contrôlées), calage du codeur, test du CPR
+                  en un tour à la main, essai en boucle fermée, démarrage automatique recommandé pour
+                  un codeur incrémental sans index.
+  Réglages        Tous les réglages, lus dans la carte et relus après chaque écriture :
+                  Volant, Effets du jeu (gains, filtres, égaliseur), Moteur et codeur, Alimentation,
+                  Entrées GPIO, Carte et profils. Pastille ambre = modifié, bleue = envoyé,
+                  jaune = appliqué mais pas mémorisé, rouge = refusé.
+                  Les réglages volant/effets s'appliquent en direct ; les réglages ODrive attendent
+                  « Appliquer » (ceux qui l'exigent ne s'écrivent que moteur au repos).
+                  Contrôles de cohérence (calage conservé sans index, seuils de tension, résistance de
+                  freinage, survitesse, courant, couple maxi…).
+                  Profils JSON au format de l'outil web Odrive-Wheel (import/export dans les deux sens).
+  Moniteur        Volant, couple, courants, tension, puissance dans la résistance, températures,
+                  erreurs décodées, courbes 10 s, extrêmes (creux et pics de tension), export CSV 1 kHz.
+  Codeur          Compteurs ODrive (compteur total, position dans le tour, calage, sens, décalage de
+                  phase), compteur d'impulsions Z, détection des sauts de position à 1 kHz.
+  PÉDALES
+  Réglages        Chaque pédale branchée apparaît toute seule (son rôle Frein/Accélérateur/Embrayage est lu
+                  dans la pédale). Course, précharge et force maxi en kg, courbe de force (modèles linéaire,
+                  progressive…) avec le point de la pédale en direct, ABS de test, mécanique, servo.
+                  « Appliquer » = essai sans mémoriser ; « Enregistrer dans la pédale » = mémorisé.
+                  Les réglages sont vérifiés comme le fait le firmware avant l'envoi, puis relus.
+                  Case « Réglages avancés » : filtres, amortissement, cotes, courbe de l'axe de jeu, messages.
+  Firmware        Flashe le firmware des pédales (PCB V6) ou du récepteur sans fil, sans autre logiciel.
+
+  OUTILS
+  Overlay         Fenêtre toujours au premier plan sur le jeu (fenêtré/borderless) : angle, vitesse,
+                  couple N·m et %, barre, crête, saturation, courant moteur, tension (et creux), courant
+                  et puissance tirés, puissance dans la résistance, température, état. Valeurs ou courbes.
+  Joy tester      Axes, boutons, POV, courbe, journal CSV (DirectInput).
+  Force test      Comme ForceTest : tous les effets DirectX (ressort, constante, vibrations, frottement,
+                  amortissement, inertie, rampe), couple mesuré en N·m, force max limitée, coupure si
+                  survitesse ou sortie de course, test « la carte répond-elle ».
+  Console volant  Terminal série : commandes ODrive (r / w / ss / sc…) et OpenFFBoard (classe.cmd?).
+  Journal         Toutes les commandes envoyées.
+
+  Barre du bas (pages du volant)  Recentrer le volant, Effacer les erreurs, Mode DFU, Redémarrer, Enregistrer :
+                  « Enregistrer » mémorise les réglages volant/effets (sys.save!, sans redémarrage) et,
+                  si besoin, la configuration ODrive (ss : moteur au repos, la carte redémarre et refait
+                  son calage — lâche le volant).
+
+PÉDALES : À SAVOIR
+  - Branche chaque pédale par son port USB relié à la puce série (CH343/CP210x).
+  - Ferme SimHub : il garde les ports des pédales ouverts (un port = un seul programme à la fois).
+  - SimForge règle les pédales mais ne lit pas la télémétrie des jeux : en course, l'ABS, le régime ou le
+    patinage venant du jeu demandent le plugin SimHub de ChrGri. Les réglages faits dans SimForge et
+    enregistrés dans la pédale restent valables avec SimHub.
+  - Le jeu voit chaque pédale comme une manette séparée : vérifie-la dans Outils › Joy tester.
+
+SÉCURITÉ
+  STOP (ou Échap) met l'axe au repos : le moteur n'est plus alimenté du tout, jeux compris, et
+  SimForge le maintient au repos tant que le STOP est enclenché. Pendant les essais et calibrations,
+  la survitesse et la sortie de course déclenchent le STOP automatiquement.
+  Côté carte, garde « Couper en cas de survitesse » activé avec une vitesse maxi de 2 à 8 tr/s.
+  Rien de tout cela ne remplace la coupure matérielle de l'alimentation à portée de main.
+
+LICENCE
+  Le firmware Odrive-Wheel est sous licence GPLv3 (voir LICENSE-GPLv3.txt avec le firmware).
+  SimForge Studio V3 ne contient pas de code du firmware : il dialogue avec lui par USB.
+  Firmware des pédales (dossier firmware) : ChrGri et contributeurs, licence CC BY-NC-SA 4.0 — usage non
+  commercial uniquement, attribution obligatoire, partage dans les mêmes conditions. Seuls les fichiers de
+  compilation ont été modifiés (voir firmware/README.txt et build_changes.diff). Le module pédales de
+  SimForge reprend le format des échanges de ce projet : il suit donc la même licence non commerciale.
+
+En cas de problème : erreurs détaillées dans errors.log à côté de simforge_studio.py.

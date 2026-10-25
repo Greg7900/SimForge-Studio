@@ -1,0 +1,6 @@
+{"order": 2,
+ "label": {"fr": "Récepteur sans fil (bridge ESP32-S3) — optionnel", "en": "Wireless receiver (ESP32-S3 bridge) — optional"},
+ "info": {"fr": "Seulement pour un ESP32-S3 séparé branché au PC qui reçoit les pédales sans fil (ESP-NOW). Inutile si les pédales sont en USB.",
+          "en": "Only for a separate ESP32-S3 plugged into the PC that receives the pedals wirelessly (ESP-NOW). Not needed when the pedals are on USB."},
+ "chip": "esp32s3",
+ "parts": [["0x0", "bootloader.bin"], ["0x8000", "partitions.bin"], ["0xe000", "boot_app0.bin"], ["0x10000", "firmware.bin"]]}

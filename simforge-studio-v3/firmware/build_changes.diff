@@ -1,0 +1,62 @@
+diff --git a/ESP32/include/Version_Board.h b/ESP32/include/Version_Board.h
+index de74f35..11e537a 100644
+--- a/ESP32/include/Version_Board.h
++++ b/ESP32/include/Version_Board.h
+@@ -1,5 +1,5 @@
+ 
+-const char *DAP_FIRMWARE_VERSION = "26.43.05";
++const char *DAP_FIRMWARE_VERSION = "26.43.07";
+ 
+ #if PCB_VERSION==3
+ 	#define CONTROL_BOARD "V3_ESP32"
+diff --git a/ESP32/platformio.envs/env.ControlBoard_V6.ini b/ESP32/platformio.envs/env.ControlBoard_V6.ini
+index fdc3b13..b50f21e 100644
+--- a/ESP32/platformio.envs/env.ControlBoard_V6.ini
++++ b/ESP32/platformio.envs/env.ControlBoard_V6.ini
+@@ -15,8 +15,9 @@ build_flags =
+ ;board_upload.require_upload_port = yes
+ lib_deps = 
+ 	${common.lib_deps_external}
+-	adafruit/Adafruit MCP4725 @ ^2.0.2
++	https://github.com/adafruit/Adafruit_BusIO.git#1.17.4
++	https://github.com/adafruit/Adafruit_MCP4725.git#2.0.2
+ 	https://github.com/tcfshcrw/ESPNowW.git
+ 	https://github.com/mikalhart/ESP32-OTA-Pull.git
+ 	https://github.com/wollewald/ADS1220_WE.git
+-	bblanchon/ArduinoJson@^7.2.0
+\ No newline at end of file
++	https://github.com/bblanchon/ArduinoJson.git#v7.4.3
+\ No newline at end of file
+diff --git a/ESP32_master/include/Version_Board.h b/ESP32_master/include/Version_Board.h
+index d1336be..8bd5b72 100644
+--- a/ESP32_master/include/Version_Board.h
++++ b/ESP32_master/include/Version_Board.h
+@@ -2,7 +2,7 @@
+ #pragma once
+ #include "Arduino.h"
+ //const char *BRIDGE_FIRMWARE_VERSION = "0.90.32";
+-#define BRIDGE_FIRMWARE_VERSION "26.41.07"
++#define BRIDGE_FIRMWARE_VERSION "26.43.07"
+ #if PCB_VERSION==5
+ 	#define BRIDGE_BOARD "Bridge_FANATEC"
+ #endif
+diff --git a/ESP32_master/platformio.ini b/ESP32_master/platformio.ini
+index 52fbf95..f8aeea9 100644
+--- a/ESP32_master/platformio.ini
++++ b/ESP32_master/platformio.ini
+@@ -29,11 +29,11 @@ extra_scripts =
+ lib_deps_external = 
+ 	#regenbogencode/ESPNowW@^1.0.2
+ 	https://github.com/tcfshcrw/ESPNowW.git
+-	adafruit/Adafruit BusIO@^1.16.1
+-	adafruit/Adafruit NeoPixel@^1.12.3
++	https://github.com/adafruit/Adafruit_BusIO.git#1.17.4
++	https://github.com/adafruit/Adafruit_NeoPixel.git#1.15.5
+ 	https://github.com/mikalhart/ESP32-OTA-Pull.git
+-	bblanchon/ArduinoJson@^7.2.0
+-	adafruit/Adafruit TinyUSB Library
++	https://github.com/bblanchon/ArduinoJson.git#v7.4.3
++	https://github.com/adafruit/Adafruit_TinyUSB_Arduino.git#3.7.7
+ 	https://github.com/tcfshcrw/Joystick_ESP32S3.git
+ 	CubicInterpolatorFloat=symlink://../Common_Libs/CubicInterpolatorFloat
+ 	DiyActivePedal_types=symlink://../Common_Libs/DiyActivePedal_types
