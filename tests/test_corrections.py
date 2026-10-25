@@ -178,3 +178,53 @@ def test_alarmes_servo_expliquees():
     assert hist and PP.servo_hint(hist[0]) == dict(PP.SERVO_MSG_HINTS)["Overvoltage"]
     assert fake.cfg["debugFlags0_u8"] & PP.DBG_CLEAR_ALARMS == 0          # remis à 0, comme le firmware
     assert PP.servo_hint("Servo communication lost!") and PP.servo_hint("Setup end") is None
+
+
+# ---------------------------------------------------------------- volant : activation du moteur
+class _Link:
+    def __init__(self, ready="1", reaches=True):
+        self.ready, self.reaches, self.cmds, self.state = ready, reaches, [], "1"
+
+    def r(self, path, timeout=0.5):
+        return {"axis0.encoder.is_ready": self.ready, "axis0.current_state": self.state,
+                "axis0.error": "0"}.get(path)
+
+    def w(self, path, value, timeout=0.5):
+        self.cmds.append((path, value))
+        if self.reaches:
+            self.state = value
+        return True, value
+
+    def system(self, cmd):
+        self.cmds.append(("system", cmd))
+
+
+def _worker(link, tm):
+    from simforge.ow_device import SerialThread
+    got = []
+    sig = SimpleNamespace(emit=lambda *a: got.append(a))
+    b = SimpleNamespace(last=tm, half_range=450.0, log=sig, arm_refused=sig, rearm_needs_cal=sig)
+    return SimpleNamespace(b=b, link=link), got, SerialThread._closed_loop
+
+
+def test_activation_refusee_hors_course():
+    """Volant tourné au-delà de sa course moteur coupé : l'activation faisait un à-coup puis une erreur."""
+    link = _Link()
+    tm = _tm(1.0, 24.0)
+    tm.pos_raw = 32767                                  # rapport HID saturé : volant hors de la course
+    w, got, closed_loop = _worker(link, tm)
+    closed_loop(w)
+    assert not any(p == "axis0.requested_state" for p, _v in link.cmds)
+    assert got
+
+
+def test_activation_efface_toujours_les_erreurs():
+    """Au démarrage, sans télémétrie, une erreur de la carte bloquait « Activer le moteur » sans message."""
+    link = _Link()
+    w, got, closed_loop = _worker(link, None)
+    closed_loop(w)
+    assert link.cmds[0] == ("system", "sc") and ("axis0.requested_state", "8") in link.cmds
+    link = _Link(reaches=False)                         # la carte reste au repos : l'utilisateur est prévenu
+    w, got, closed_loop = _worker(link, None)
+    closed_loop(w)
+    assert any("erreur" in str(a).lower() or "error" in str(a).lower() for a in got)

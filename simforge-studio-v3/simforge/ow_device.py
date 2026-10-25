@@ -714,6 +714,9 @@ class SerialThread(QThread):
                 self._expect_reboot(line.strip())
         elif kind == "state":
             _, st = job
+            if int(st) == P.CLOSED_LOOP:
+                self._closed_loop()
+                return
             tm = b.last
             if int(st) != P.IDLE and tm is not None and tm.any_error:
                 # l'ODrive refuse tout changement d'état tant qu'une erreur est présente : on la note puis on efface
@@ -721,10 +724,6 @@ class SerialThread(QThread):
                     e=", ".join(n for _g, n, _d in P.errors_of(tm))))
                 L.system("sc")
                 time.sleep(0.15)
-            if int(st) == P.CLOSED_LOOP and L.r("axis0.encoder.is_ready") != "1":
-                b.log.emit("warn", T("Boucle fermée refusée : le codeur n'est pas calé depuis l'allumage."))
-                b.rearm_needs_cal.emit()
-                return
             ok, msg = L.w("axis0.requested_state", str(int(st)))
             b.log.emit("info" if ok else "warn",
                        T("→ état demandé : {s}").format(s=P.state_text(int(st))) + ("" if ok else f" ({msg})"))
@@ -747,16 +746,8 @@ class SerialThread(QThread):
             if not arm:
                 b.log.emit("info", T("STOP réarmé, moteur laissé au repos"))
                 return
-            ready = L.r("axis0.encoder.is_ready")
-            if ready == "1":
-                L.system("sc")
-                time.sleep(0.15)
-                L.w("axis0.requested_state", "8")
-                b.log.emit("info", T("STOP réarmé : boucle fermée demandée"))
-            else:
-                b.log.emit("warn", T("STOP réarmé, moteur laissé au repos : le codeur n'est pas calé "
-                                     "(onglet Mise en route)."))
-                b.rearm_needs_cal.emit()
+            b.log.emit("info", T("STOP réarmé"))
+            self._closed_loop()
         elif kind == "save":
             _, ffb, odrive = job
             if ffb:
@@ -787,6 +778,43 @@ class SerialThread(QThread):
             L.system(cmd)
             if cmd in ("sr", "sd", "se", "ss"):
                 self._expect_reboot(cmd)
+
+    def _closed_loop(self):
+        """Active le moteur (bouton et réarmement du STOP) : volant dans sa course, codeur calé, erreurs effacées,
+        puis vérifie que la carte est vraiment passée en boucle fermée."""
+        b, L = self.b, self.link
+        tm = b.last
+        if tm is not None and abs(tm.pos_raw) >= 32700:
+            # hors course, la butée renverrait le volant d'un coup dès l'activation (à-coup puis erreur)
+            msg = T("Le volant est hors de sa course réglée (±{r:.0f}°) : ramène-le dans la course, puis active le "
+                    "moteur. Sinon la butée le renvoie d'un coup.").format(r=b.half_range)
+            b.log.emit("warn", msg)
+            b.arm_refused.emit(msg)
+            return
+        if L.r("axis0.encoder.is_ready") != "1":
+            b.log.emit("warn", T("Boucle fermée refusée : le codeur n'est pas calé depuis l'allumage."))
+            b.rearm_needs_cal.emit()
+            return
+        # toujours : une erreur absente de la télémétrie (rapport HID pas encore reçu…) bloque aussi l'activation
+        if tm is not None and tm.any_error:
+            b.log.emit("warn", T("Erreurs effacées avant la commande : {e}").format(
+                e=", ".join(n for _g, n, _d in P.errors_of(tm))))
+        L.system("sc")
+        time.sleep(0.15)
+        ok, msg = L.w("axis0.requested_state", str(P.CLOSED_LOOP))
+        b.log.emit("info" if ok else "warn",
+                   T("→ état demandé : {s}").format(s=P.state_text(P.CLOSED_LOOP)) + ("" if ok else f" ({msg})"))
+        t_end = time.perf_counter() + 1.5
+        while time.perf_counter() < t_end:
+            st = L.r("axis0.current_state")
+            if st == str(P.CLOSED_LOOP):
+                return
+            time.sleep(0.1)
+        err = L.r("axis0.error")
+        msg = T("La carte n'a pas activé le moteur (état {s}, erreur d'axe {e}). Regarde le Moniteur, efface les "
+                "erreurs puis réessaie.").format(s=st, e=err)
+        b.log.emit("error", msg)
+        b.arm_refused.emit(msg)
 
     def _expect_reboot(self, cmd):
         what = {"ss": T("mémorisation + redémarrage"), "sr": T("redémarrage"), "sd": T("mode DFU"),
@@ -971,6 +999,7 @@ class Board(QObject):
     estop_changed = Signal(bool)
     guard_tripped = Signal(float)
     rearm_needs_cal = Signal()
+    arm_refused = Signal(str)              # activation du moteur refusée ou ratée : message pour l'utilisateur
 
     def __init__(self, demo=False, parent=None):
         super().__init__(parent)

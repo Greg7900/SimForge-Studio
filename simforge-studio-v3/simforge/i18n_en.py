@@ -2067,4 +2067,14 @@ EN = {
     "vibrations. Le firmware ne descend pas sous 0,5.":
         "Damping ratio: 1 = just enough not to bounce, higher = more braked pedal, against vibration. The firmware "
         "does not go below 0.5.",
+    "La carte n'a pas activé le moteur (état {s}, erreur d'axe {e}). Regarde le Moniteur, efface les erreurs puis "
+    "réessaie.":
+        "The board did not enable the motor (state {s}, axis error {e}). Check the Monitor, clear the errors and try "
+        "again.",
+    "Le volant est hors de sa course réglée (±{r:.0f}°) : ramène-le dans la course, puis active le moteur. Sinon la "
+    "butée le renvoie d'un coup.":
+        "The wheel is outside its set range (±{r:.0f}°): bring it back within range, then enable the motor. "
+        "Otherwise the endstop throws it back at once.",
+    'STOP réarmé':
+        'STOP released',
 }

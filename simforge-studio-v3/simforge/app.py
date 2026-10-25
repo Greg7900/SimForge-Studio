@@ -307,6 +307,7 @@ class MainWindow(QMainWindow):
         b.saved.connect(self.on_saved)
         b.values.connect(self.on_values)
         b.rearm_needs_cal.connect(self.on_needs_cal)
+        b.arm_refused.connect(lambda msg: QMessageBox.warning(self, T("Activer le moteur"), msg))
         self.settings.dirty_changed.connect(self.on_dirty)
         QShortcut(QKeySequence(Qt.Key_Escape), self, activated=self.engage_estop)
         self._set_actions()
