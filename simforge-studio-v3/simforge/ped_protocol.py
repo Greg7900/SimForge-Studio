@@ -339,7 +339,13 @@ PFIELDS = [
     PField("kfModelNoiseJoystick_u8", T("Filtre de l'axe de jeu : bruit"), group=G_FILT),
     PField("minForceForEffects_u8", T("Force mini pour les effets"), group=G_GLOB),
     PField("stepLossFunctionFlags_u8", T("Détection de pas perdus (drapeaux)"), group=G_GEN),
-    PField("endstopDetectionThreshold_u8", T("Seuil de détection des butées"), lo=10, hi=50, group=G_SERVO),
+    PField("endstopDetectionThreshold_u8", T("Seuil de détection des butées"), lo=10, hi=50, unit="%",
+           group=G_SERVO,
+           tip=T("Sert à la mise à zéro (démarrage, réveil) : le chariot avance doucement jusqu'à ce que le courant "
+                 "du servo dépasse ce seuil, en % de son courant. Le firmware y place alors la butée.\n"
+                 "Trop bas : un frottement de la mécanique est pris pour une butée, la course trouvée est trop "
+                 "courte et la pédale se bloque sur cette fausse limite. Trop haut : le servo pousse fort contre la "
+                 "butée. Le firmware limite la valeur entre 10 et 50 % ; pas de réglage automatique.")),
     PField("debugFlags0_u8", T("Drapeaux de débogage"), group=G_GEN),
 ]
 PBY = {f.name: f for f in PFIELDS}
