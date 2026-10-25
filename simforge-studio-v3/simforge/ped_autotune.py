@@ -1,6 +1,6 @@
 """Auto-test (bêta) des pédales : cherche le filtre et l'amortissement les plus réactifs sans oscillation.
 
-Déroulé : bruit du capteur pied posé, puis paliers de « Vitesse du filtre » de 255 à 64 (filtre de la pédale, Kalman
+Déroulé : bruit du capteur pied posé, puis paliers de « Vitesse du filtre » de 255 à 20 (filtre de la pédale, Kalman
 si elle est en IMM ou sans filtre : l'IMM du firmware peut bloquer la pédale) ;
 à chaque palier l'utilisateur appuie et relâche doucement et l'on compte les trames où le firmware signale une
 oscillation (admittance_isOscillating de l'état détaillé). Si tous les paliers oscillent, on monte l'amortissement.
@@ -22,7 +22,7 @@ from .i18n import T
 from .theme import C
 from .widgets import hint
 
-SPEEDS = (255, 180, 128, 90, 64)        # « Vitesse du filtre », de la plus réactive à la plus calme
+SPEEDS = (255, 180, 128, 90, 64, 40, 20)  # « Vitesse du filtre », de la plus réactive à la plus calme
 DAMPINGS = (150, 200, 250)              # « Amortissement virtuel » (%) essayés si tous les paliers oscillent
 OSC_MAX = 0.002                         # part de trames en oscillation tolérée (bruit de détection)
 MIN_TRAVEL = 15.0                       # course parcourue (%) pour qu'un palier soit valable
@@ -45,7 +45,7 @@ class AutoTune(QWidget):
         lay.setSpacing(8)
         warn = hint(T(
             "Bêta. Cherche le réglage de filtre le plus réactif qui ne fait pas vibrer la pédale : vitesse du "
-            "filtre de 255 à 64, puis amortissement si besoin. Environ 1 à 2 min. "
+            "filtre de 255 à 20, puis amortissement si besoin. Environ 2 à 3 min. "
             "Rien n'est enregistré dans la pédale pendant le test ; tes modifications en attente ne sont pas "
             "envoyées. Garde le pied sur la pédale et suis les consignes ; « Arrêter » remet tes réglages."))
         warn.setStyleSheet(f"color: {C['warn']};")
