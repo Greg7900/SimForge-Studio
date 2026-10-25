@@ -234,82 +234,96 @@ class PField:
     dec: int = 0
     items: list = field(default_factory=list)
     tip: str = ""
-    adv: bool = False
     group: str = ""
 
 
-G_MAIN = T("Pédale")
-G_FX = T("Effets (ABS, régime, point de patinage…)")
-G_MECH = T("Mécanique de la pédale")
-G_CTRL = T("Régulation et servo")
+# Onglets, rangés comme dans le plugin SimHub de ChrGri :
+#   courbe / cinématique / axe de jeu  ·  général / filtre / effets globaux / servo / dynamique  ·  effets
+G_CURVE = T("Courbe force-course")
+G_KIN = T("Cinématique")
+G_JOY = T("Axe de jeu")
+G_GEN = T("Général")
+G_FILT = T("Filtre")
+G_GLOB = T("Effets globaux")
+G_SERVO = T("Servo")
+G_DYN = T("Dynamique")
+G_ABS = T("ABS")
+G_RPM = T("Régime")
+G_BP = T("Point de patinage")
+G_WS = T("Patinage des roues")
+G_GF = T("Effet G")
+G_ROAD = T("Chocs de la route")
+TABS_CURVE = [G_CURVE, G_KIN, G_JOY]
+TABS_GENERAL = [G_GEN, G_FILT, G_GLOB, G_SERVO, G_DYN]
+TABS_FX = [G_ABS, G_RPM, G_BP, G_WS, G_GF, G_ROAD]
 
 PFIELDS = [
     PField("pedalType_u8", T("Rôle de la pédale"), "enum",
-           items=[(0, T("Embrayage")), (1, T("Frein")), (2, T("Accélérateur"))], group=G_MAIN,
+           items=[(0, T("Embrayage")), (1, T("Frein")), (2, T("Accélérateur"))], group=G_GEN,
            tip=T("Choisit l'axe de manette et les effets reçus.")),
-    PField("pedalStartPosition_u8", T("Début de course"), lo=0, hi=99, unit="%", group=G_MAIN,
+    PField("pedalStartPosition_u8", T("Début de course"), lo=0, hi=99, unit="%", group=G_CURVE,
            tip=T("Position de repos de la pédale, en % de la course mécanique.")),
-    PField("pedalEndPosition_u8", T("Fin de course"), lo=1, hi=100, unit="%", group=G_MAIN),
-    PField("preloadForce_fl32", T("Précharge (force au repos)"), "float", 0, 100, "kg", dec=1, group=G_MAIN),
-    PField("maxForce_fl32", T("Force maximum"), "float", 1, 500, "kg", dec=1, group=G_MAIN,
+    PField("pedalEndPosition_u8", T("Fin de course"), lo=1, hi=100, unit="%", group=G_CURVE),
+    PField("preloadForce_fl32", T("Précharge (force au repos)"), "float", 0, 100, "kg", dec=1, group=G_CURVE),
+    PField("maxForce_fl32", T("Force maximum"), "float", 1, 500, "kg", dec=1, group=G_CURVE,
            tip=T("Force à fond de course (frein : souvent 40 à 80 kg avec un capteur de 100 kg).")),
-    PField("maxGameOutput_u8", T("Sortie maxi vers le jeu"), lo=1, hi=100, unit="%", group=G_MAIN,
+    PField("maxGameOutput_u8", T("Sortie maxi vers le jeu"), lo=1, hi=100, unit="%", group=G_JOY,
            tip=T("100 % = le jeu reçoit 100 % à la force maximum.")),
     PField("travelAsJoystickOutput_u8", T("Axe envoyé au jeu"), "enum",
-           items=[(0, T("Force (frein à capteur)")), (1, T("Position (course)"))], group=G_MAIN),
-    PField("simulateAbsTrigger_u8", T("ABS simulé (sans jeu)"), "bool", group=G_FX,
+           items=[(0, T("Force (frein à capteur)")), (1, T("Position (course)"))], group=G_JOY),
+    PField("simulateAbsTrigger_u8", T("ABS simulé (sans jeu)"), "bool", group=G_ABS,
            tip=T("La pédale vibre toute seule au-delà du seuil : pratique pour régler l'ABS hors jeu.")),
-    PField("simulateAbsValue_u8", T("Seuil de l'ABS simulé"), lo=0, hi=100, unit="%", group=G_FX),
-    PField("absFrequency_u8", T("Fréquence de l'ABS"), lo=1, hi=255, unit="Hz", group=G_FX),
-    PField("absAmplitude_u8", T("Amplitude de l'ABS"), group=G_FX, tip=T("Valeur brute du firmware (0–255).")),
+    PField("simulateAbsValue_u8", T("Seuil de l'ABS simulé"), lo=0, hi=100, unit="%", group=G_ABS),
+    PField("absFrequency_u8", T("Fréquence de l'ABS"), lo=1, hi=255, unit="Hz", group=G_ABS),
+    PField("absAmplitude_u8", T("Amplitude de l'ABS"), group=G_ABS, tip=T("Valeur brute du firmware (0–255).")),
     PField("absPattern_u8", T("Forme de l'ABS"), "enum", items=[(0, T("Sinus")), (1, T("Dent de scie"))],
-           group=G_FX),
+           group=G_ABS),
     PField("absForceOrTarvelBit_u8", T("L'ABS agit sur"), "enum", items=[(0, T("la force")), (1, T("la course"))],
-           group=G_FX),
-    PField("rpmMinFreq_u8", T("Régime : fréquence mini"), unit="Hz", group=G_FX, adv=True),
-    PField("rpmMaxFreq_u8", T("Régime : fréquence maxi"), unit="Hz", group=G_FX, adv=True),
-    PField("rpmAmp_u8", T("Régime : amplitude"), group=G_FX, adv=True, tip=T("Valeur brute du firmware.")),
-    PField("bpTriggerValue_u8", T("Point de patinage : position"), unit="%", hi=100, group=G_FX, adv=True),
-    PField("bpAmp_u8", T("Point de patinage : amplitude"), group=G_FX, adv=True),
-    PField("bpFreq_u8", T("Point de patinage : fréquence"), unit="Hz", group=G_FX, adv=True),
-    PField("wsAmp_u8", T("Patinage des roues : amplitude"), group=G_FX, adv=True),
-    PField("wsFreq_u8", T("Patinage des roues : fréquence"), unit="Hz", group=G_FX, adv=True),
-    PField("gMulti_u8", T("Effet G : multiplicateur"), unit="%", group=G_FX, adv=True),
-    PField("roadMulti_u8", T("Chocs de la route : multiplicateur"), unit="%", group=G_FX, adv=True),
-    PField("lengthPedalTravel_i16", T("Course mécanique"), lo=10, hi=200, unit="mm", group=G_MECH),
-    PField("lengthPedalA_i16", T("Cote A"), lo=50, hi=500, unit="mm", group=G_MECH),
-    PField("lengthPedalB_i16", T("Cote B"), lo=50, hi=500, unit="mm", group=G_MECH),
-    PField("lengthPedalCHorizontal_i16", T("Cote C horizontale"), lo=50, hi=500, unit="mm", group=G_MECH),
-    PField("lengthPedalCVertical_i16", T("Cote C verticale"), lo=-500, hi=500, unit="mm", group=G_MECH),
-    PField("lengthPedalD_i16", T("Cote D"), lo=-300, hi=300, unit="mm", group=G_MECH),
-    PField("spindlePitch_mmPerRev_u8", T("Pas de la vis à billes"), lo=1, hi=20, unit=T("mm/tr"), group=G_MECH),
-    PField("loadcellRating_u8", T("Capacité du capteur de force"), lo=20, hi=510, unit="kg", scale=2, group=G_MECH,
+           group=G_ABS),
+    PField("rpmMinFreq_u8", T("Régime : fréquence mini"), unit="Hz", group=G_RPM),
+    PField("rpmMaxFreq_u8", T("Régime : fréquence maxi"), unit="Hz", group=G_RPM),
+    PField("rpmAmp_u8", T("Régime : amplitude"), group=G_RPM, tip=T("Valeur brute du firmware.")),
+    PField("bpTriggerValue_u8", T("Point de patinage : position"), unit="%", hi=100, group=G_BP),
+    PField("bpAmp_u8", T("Point de patinage : amplitude"), group=G_BP),
+    PField("bpFreq_u8", T("Point de patinage : fréquence"), unit="Hz", group=G_BP),
+    PField("wsAmp_u8", T("Patinage des roues : amplitude"), group=G_WS),
+    PField("wsFreq_u8", T("Patinage des roues : fréquence"), unit="Hz", group=G_WS),
+    PField("gMulti_u8", T("Effet G : multiplicateur"), unit="%", group=G_GF),
+    PField("roadMulti_u8", T("Chocs de la route : multiplicateur"), unit="%", group=G_ROAD),
+    PField("lengthPedalTravel_i16", T("Course du chariot (depuis A)"), lo=10, hi=200, unit="mm", group=G_KIN),
+    PField("lengthPedalA_i16", T("Cote a : capteur de force (B → C)"), lo=50, hi=500, unit="mm", group=G_KIN),
+    PField("lengthPedalB_i16", T("Cote b : pivot → capteur (O → C)"), lo=50, hi=500, unit="mm", group=G_KIN),
+    PField("lengthPedalCHorizontal_i16", T("Cote c horizontale (O → A)"), lo=50, hi=500, unit="mm", group=G_KIN),
+    PField("lengthPedalCVertical_i16", T("Cote c verticale (hauteur de B)"), lo=-500, hi=500, unit="mm", group=G_KIN),
+    PField("lengthPedalD_i16", T("Cote d : capteur → bout de pédale (C → D)"), lo=-300, hi=300, unit="mm", group=G_KIN),
+    PField("spindlePitch_mmPerRev_u8", T("Pas de la vis à billes"), lo=1, hi=20, unit=T("mm/tr"), group=G_GEN),
+    PField("loadcellRating_u8", T("Capacité du capteur de force"), lo=20, hi=510, unit="kg", scale=2, group=G_GEN,
            tip=T("Valeur écrite sur le capteur (ex. 100 kg).")),
-    PField("invertLoadcellReading_u8", T("Inverser le capteur de force"), "bool", group=G_MECH),
-    PField("invertMotorDirection_u8", T("Inverser le sens du moteur"), "bool", group=G_MECH),
+    PField("invertLoadcellReading_u8", T("Inverser le capteur de force"), "bool", group=G_GEN),
+    PField("invertMotorDirection_u8", T("Inverser le sens du moteur"), "bool", group=G_GEN),
     PField("enableBrakeResistor_u8", T("Énergie de freinage du servo"), "enum",
            items=[(0, T("résistance interne du servo")), (1, T("+ résistance externe pilotée")),
-                  (2, T("circuit matériel seul"))], group=G_CTRL),
+                  (2, T("circuit matériel seul"))], group=G_GEN),
     PField("brakeResistorResistance_Ohm_u8", T("Valeur de la résistance externe"), lo=0, hi=255, unit="Ω",
-           group=G_CTRL, tip=T("0 = 10 Ω par défaut.")),
-    PField("servoIdleTimeout_u8", T("Mise en veille du servo"), group=G_CTRL, adv=True,
+           group=G_GEN, tip=T("0 = 10 Ω par défaut.")),
+    PField("servoIdleTimeout_u8", T("Mise en veille du servo"), group=G_SERVO,
            tip=T("Valeur brute du firmware ; 0 = jamais.")),
     PField("wakeOnPluginOnly_u8", T("Au démarrage"), "enum",
-           items=[(0, T("la pédale démarre seule")), (1, T("attend le logiciel (veille)"))], group=G_CTRL),
-    PField("virtualPedalMassInPercent_u8", T("Masse virtuelle"), unit="%", group=G_CTRL, adv=True),
-    PField("virtualPedalDampingInPercent_u8", T("Amortissement virtuel"), unit="%", group=G_CTRL, adv=True),
-    PField("dampingProgression_u8", T("Progressivité de l'amortissement"), hi=100, unit="%", group=G_CTRL, adv=True),
-    PField("coulombFrictionIn0p1N_u8", T("Frottement simulé"), unit="N", scale=0.1, dec=1, group=G_CTRL, adv=True),
-    PField("endstopStiffness_kg_mm_u8", T("Raideur de la butée"), unit="kg/mm", group=G_CTRL, adv=True),
-    PField("endstopTravelRange_mm_u8", T("Zone de la butée"), unit="mm", group=G_CTRL, adv=True),
-    PField("kfModelNoise_u8", T("Filtre de force (Kalman) : bruit du modèle"), group=G_CTRL, adv=True),
-    PField("kfModelOrder_u8", T("Filtre de force : ordre du modèle"), group=G_CTRL, adv=True),
-    PField("kfJoystick_u8", T("Filtre de l'axe de jeu"), group=G_CTRL, adv=True),
-    PField("kfModelNoiseJoystick_u8", T("Filtre de l'axe de jeu : bruit"), group=G_CTRL, adv=True),
-    PField("minForceForEffects_u8", T("Force mini pour les effets"), group=G_CTRL, adv=True),
-    PField("stepLossFunctionFlags_u8", T("Détection de pas perdus (drapeaux)"), group=G_CTRL, adv=True),
-    PField("endstopDetectionThreshold_u8", T("Seuil de détection des butées"), lo=10, hi=50, group=G_CTRL, adv=True),
-    PField("debugFlags0_u8", T("Drapeaux de débogage"), group=G_CTRL, adv=True),
+           items=[(0, T("la pédale démarre seule")), (1, T("attend le logiciel (veille)"))], group=G_GEN),
+    PField("virtualPedalMassInPercent_u8", T("Masse virtuelle"), unit="%", group=G_DYN),
+    PField("virtualPedalDampingInPercent_u8", T("Amortissement virtuel"), unit="%", group=G_DYN),
+    PField("dampingProgression_u8", T("Progressivité de l'amortissement"), hi=100, unit="%", group=G_DYN),
+    PField("coulombFrictionIn0p1N_u8", T("Frottement simulé"), unit="N", scale=0.1, dec=1, group=G_DYN),
+    PField("endstopStiffness_kg_mm_u8", T("Raideur de la butée"), unit="kg/mm", group=G_DYN),
+    PField("endstopTravelRange_mm_u8", T("Zone de la butée"), unit="mm", group=G_DYN),
+    PField("kfModelNoise_u8", T("Filtre de force (Kalman) : bruit du modèle"), group=G_FILT),
+    PField("kfModelOrder_u8", T("Filtre de force : ordre du modèle"), group=G_FILT),
+    PField("kfJoystick_u8", T("Filtre de l'axe de jeu"), group=G_FILT),
+    PField("kfModelNoiseJoystick_u8", T("Filtre de l'axe de jeu : bruit"), group=G_FILT),
+    PField("minForceForEffects_u8", T("Force mini pour les effets"), group=G_GLOB),
+    PField("stepLossFunctionFlags_u8", T("Détection de pas perdus (drapeaux)"), group=G_GEN),
+    PField("endstopDetectionThreshold_u8", T("Seuil de détection des butées"), lo=10, hi=50, group=G_SERVO),
+    PField("debugFlags0_u8", T("Drapeaux de débogage"), group=G_GEN),
 ]
 PBY = {f.name: f for f in PFIELDS}
 for _f in PFIELDS:

@@ -44,12 +44,18 @@ MENU DE GAUCHE
   Codeur          Compteurs ODrive (compteur total, position dans le tour, calage, sens, décalage de
                   phase), compteur d'impulsions Z, détection des sauts de position à 1 kHz.
   PÉDALES
-  Réglages        Chaque pédale branchée apparaît toute seule (son rôle Frein/Accélérateur/Embrayage est lu
-                  dans la pédale). Course, précharge et force maxi en kg, courbe de force (modèles linéaire,
-                  progressive…) avec le point de la pédale en direct, ABS de test, mécanique, servo.
+  Réglages        Organisés comme le plugin SimHub de ChrGri. En haut : onglets Embrayage / Frein / Accélérateur
+                  (grisés si la pédale n'est pas branchée ; le rôle est lu dans la pédale). À gauche : infos,
+                  course, force en kg et axe de jeu en direct, actions (bip, relire, export/import), messages
+                  du firmware. À droite, trois groupes d'onglets :
+                    Courbe force-course (début/fin de course, précharge, force maxi, courbe avec modèles et
+                    point de la pédale en direct) · Cinématique (schéma de la pédale avec les points O A B C D
+                    et les cotes a b c d, angle de la pédale) · Axe de jeu (source, sortie maxi, courbe)
+                    Général · Filtre · Effets globaux · Servo · Dynamique
+                    Effets : ABS (avec test 1 s) · Régime · Point de patinage · Patinage des roues · Effet G ·
+                    Chocs de la route
                   « Appliquer » = essai sans mémoriser ; « Enregistrer dans la pédale » = mémorisé.
                   Les réglages sont vérifiés comme le fait le firmware avant l'envoi, puis relus.
-                  Case « Réglages avancés » : filtres, amortissement, cotes, courbe de l'axe de jeu, messages.
   Firmware        Flashe le firmware des pédales (PCB V6) ou du récepteur sans fil, sans autre logiciel.
 
   OUTILS

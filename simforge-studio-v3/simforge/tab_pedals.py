@@ -1,20 +1,23 @@
-"""Pages Pédales : réglages (avec la courbe de force) et état en direct de chaque pédale active ChrGri."""
+"""Page Pédales › Réglages de chaque pédale active ChrGri, organisée comme le plugin SimHub de ChrGri :
+onglets des pédales, colonne d'infos à gauche, onglets de réglage à droite (avec le schéma de cinématique)."""
 from __future__ import annotations
 
 import json
+import math
 import time
 from collections import deque
 
 import pyqtgraph as pg
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import Qt, QTimer, Signal, QPointF, QRectF
+from PySide6.QtGui import QPainter, QColor, QPen, QFont
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton, QComboBox,
                                QCheckBox, QDoubleSpinBox, QSpinBox, QScrollArea, QMessageBox, QFileDialog,
-                               QPlainTextEdit)
+                               QPlainTextEdit, QTabBar, QTabWidget)
 
 from . import ped_protocol as PP
 from .i18n import T
 from .theme import C
-from .widgets import card, hint, repolish, StatRow, AxisBar
+from .widgets import card, hint, repolish, AxisBar
 
 pg.setConfigOptions(antialias=False, background=C["panel"], foreground=C["dim"])
 
@@ -274,7 +277,125 @@ class CurveEditor(QWidget):
         self.live.setData([x], [y])
 
 
+class KinematicsView(QWidget):
+    """Schéma de la cinématique de la pédale, mêmes lettres que le plugin SimHub de ChrGri.
+
+    O pivot bas de la pédale · A début de course du chariot · B articulation du capteur sur le chariot
+    C articulation du capteur sur la pédale · D bout de la pédale.
+    Cotes : a = B→C, b = O→C, c horizontale = O→A, c verticale = hauteur de B, d = C→D ; la course part de A.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.cfg = None
+        self.live = None            # position de la pédale 0..1 (dans la plage début/fin de course)
+        self.setMinimumHeight(260)
+
+    def set_cfg(self, cfg):
+        self.cfg = cfg
+        self.update()
+
+    def set_live(self, r01):
+        self.live = r01
+        self.update()
+
+    def _angle(self, sled):
+        """Angle de la pédale (rad) pour une position du chariot (mm), comme le plugin."""
+        c = self.cfg
+        b, a = c["lengthPedalB_i16"], c["lengthPedalA_i16"]
+        ch, cv = c["lengthPedalCHorizontal_i16"] + sled, c["lengthPedalCVertical_i16"]
+        ob = math.hypot(ch, cv)
+        if not (a and b and ob):
+            return None
+        k = (b * b + ob * ob - a * a) / (2 * b * ob)
+        return math.acos(max(-1.0, min(1.0, k))) + math.atan2(cv, ch)
+
+    def angles(self):
+        """(angle actuel, angle au début, angle à la fin) en degrés, ou None."""
+        if not self.cfg:
+            return None
+        c = self.cfg
+        tr = c["lengthPedalTravel_i16"]
+        start, end = c["pedalStartPosition_u8"] / 100, c["pedalEndPosition_u8"] / 100
+        live = self.live if self.live is not None else 0.0
+        vals = [self._angle(tr * (start + live * (end - start))), self._angle(tr * start), self._angle(tr * end)]
+        return None if None in vals else [math.degrees(v) for v in vals]
+
+    def paintEvent(self, _):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        p.fillRect(self.rect(), QColor(C["bg"]))
+        if not self.cfg:
+            p.setPen(QColor(C["dim"]))
+            p.drawText(self.rect(), Qt.AlignCenter, T("Pas de configuration lue"))
+            return
+        c = self.cfg
+        a, b, d = c["lengthPedalA_i16"], c["lengthPedalB_i16"], c["lengthPedalD_i16"]
+        ch, cv, tr = c["lengthPedalCHorizontal_i16"], c["lengthPedalCVertical_i16"], c["lengthPedalTravel_i16"]
+        start, end = c["pedalStartPosition_u8"] / 100, c["pedalEndPosition_u8"] / 100
+        live = self.live if self.live is not None else 0.0
+        sled = tr * (start + live * (end - start))
+        th = self._angle(sled)
+        if th is None:
+            p.setPen(QColor(C["bad"]))
+            p.drawText(self.rect(), Qt.AlignCenter, T("Cotes impossibles : la pédale ne peut pas se monter ainsi"))
+            return
+        # points en mm (y vers le haut)
+        O = (0.0, 0.0)
+        A = (float(ch), 0.0)
+        B = (ch + sled, float(cv))
+        Cp = (b * math.cos(th), b * math.sin(th))
+        D = ((b + d) * math.cos(th), (b + d) * math.sin(th))
+        pts = [O, A, B, Cp, D, (ch + tr, 0.0)]
+        xs, ys = [q[0] for q in pts], [q[1] for q in pts]
+        x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+        m = 34
+        sc = min((self.width() - 2 * m) / max(1.0, x1 - x0), (self.height() - 2 * m) / max(1.0, y1 - y0))
+
+        def P(q):
+            return QPointF(m + (q[0] - x0) * sc, self.height() - m - (q[1] - y0) * sc)
+
+        # sol / rail et course du chariot
+        p.setPen(QPen(QColor(C["line"]), 2))
+        p.drawLine(P((x0 - 10, 0)), P((x1 + 10, 0)))
+        p.setPen(QPen(QColor(C["bad"]), 4, Qt.SolidLine, Qt.RoundCap))
+        p.drawLine(P((ch + tr * start, 0)), P((ch + tr * end, 0)))
+        p.setPen(QPen(QColor(C["bad"]).darker(170), 2, Qt.DashLine))
+        p.drawLine(P(A), P((ch + tr, 0)))
+        # cotes
+        seg = [(O, A, "c horiz.", C["dim"]), ((B[0], 0.0), B, "c vert.", C["dim"]), (B, Cp, "a", C["blue"]),
+               (O, Cp, "b", C["accent"]), (Cp, D, "d", C["accent"])]
+        for q1, q2, name, col in seg:
+            p.setPen(QPen(QColor(col), 3 if name in ("a", "b", "d") else 1.5,
+                          Qt.SolidLine if name in ("a", "b", "d") else Qt.DashLine, Qt.RoundCap))
+            p.drawLine(P(q1), P(q2))
+        vals = {"a": a, "b": b, "c horiz.": ch, "c vert.": cv, "d": d}
+        p.setFont(QFont(p.font().family(), 9))
+        for q1, q2, name, col in seg:
+            mid = (P(q1) + P(q2)) / 2
+            p.setPen(QColor(col))
+            p.drawText(QRectF(mid.x() + 6, mid.y() - 18, 90, 16), Qt.AlignLeft, f"{name} = {vals[name]}")
+        # articulations
+        p.setFont(QFont(p.font().family(), 10, QFont.Bold))
+        off = {"O": (-16, 4), "A": (-4, 18), "B": (8, 4), "C": (-18, -6), "D": (-18, -6)}
+        for name, q in (("O", O), ("A", A), ("B", B), ("C", Cp), ("D", D)):
+            pt = P(q)
+            p.setPen(QPen(QColor(C["text"]), 1.5))
+            p.setBrush(QColor(C["panel"]))
+            p.drawEllipse(pt, 5, 5)
+            p.drawText(pt + QPointF(*off[name]), name)
+        p.setFont(QFont(p.font().family(), 8))
+        p.setPen(QColor(C["bad"]))
+        p.drawText(P((ch + tr / 2, 0)) + QPointF(-30, 16), T("course {v} mm").format(v=tr))
+
+
 class PedalsTab(QWidget):
+    """Organisation reprise du plugin SimHub de ChrGri : onglets des pédales en haut, colonne de gauche (infos,
+    direct, actions, profil) et, à droite, trois groupes d'onglets (courbe / cinématique / axe de jeu,
+    réglages généraux, effets)."""
+
+    ROLES = (0, 1, 2)       # Embrayage, Frein, Accélérateur : toujours affichés, comme dans le plugin
+
     def __init__(self, mgr, parent=None):
         super().__init__(parent)
         self.m = mgr
@@ -286,200 +407,241 @@ class PedalsTab(QWidget):
         root = QVBoxLayout(self)
         root.setContentsMargins(16, 10, 16, 8)
         root.setSpacing(8)
-        top = QHBoxLayout()
-        top.addWidget(QLabel(T("Pédale")))
-        self.sel = QComboBox()
-        self.sel.setMinimumWidth(260)
-        self.sel.currentIndexChanged.connect(self._select)
-        top.addWidget(self.sel)
-        self.status = QLabel(T("Aucune pédale détectée"))
-        self.status.setObjectName("hint")
-        self.status.setWordWrap(True)
-        self.status.setMinimumWidth(120)
-        from PySide6.QtWidgets import QSizePolicy
-        self.status.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
-        top.addStretch(1)
-        self.adv = QCheckBox(T("Réglages avancés"))
-        self.adv.toggled.connect(self._show_adv)
-        top.addWidget(self.adv)
-        self.b_beep = QPushButton(T("Identifier (bip)"))
-        self.b_beep.clicked.connect(lambda: self.m.action(self.port, T("bip d'identification"),
-                                                         systemAction_u8=PP.ACT_BEEP))
-        top.addWidget(self.b_beep)
-        self.b_read = QPushButton(T("Relire"))
-        self.b_read.clicked.connect(lambda: self.m.request_config(self.port))
-        top.addWidget(self.b_read)
-        self.b_apply = QPushButton(T("Appliquer"))
-        self.b_apply.setToolTip(T("Envoie les réglages à la pédale sans les mémoriser (perdus au redémarrage)."))
-        self.b_apply.clicked.connect(lambda: self.send(False))
-        top.addWidget(self.b_apply)
-        self.b_save = QPushButton(T("Enregistrer dans la pédale"))
-        self.b_save.setObjectName("primary")
-        self.b_save.clicked.connect(lambda: self.send(True))
-        top.addWidget(self.b_save)
-        root.addLayout(top)
-        root.addWidget(self.status)
+
+        # ------------------------------------------- onglets des pédales
+        self.sel = QTabBar()
+        self.sel.setExpanding(False)
+        self.sel.setDrawBase(False)
+        self.sel.setStyleSheet("QTabBar::tab { font-size: 12pt; padding: 10px 26px; }")
+        self.sel.currentChanged.connect(self._select)
+        root.addWidget(self.sel)
 
         body = QHBoxLayout()
         body.setSpacing(12)
-        # ------------------------------------------- réglages
+
+        # ------------------------------------------- colonne de gauche
+        left = QWidget()
+        left.setFixedWidth(270)
+        ll = QVBoxLayout(left)
+        ll.setContentsMargins(0, 0, 0, 0)
+        ll.setSpacing(10)
+
+        c, l = card(T("Pédale"))
+        self.status = QLabel(T("Aucune pédale détectée"))
+        self.status.setObjectName("hint")
+        self.status.setWordWrap(True)
+        l.addWidget(self.status)
+        self.s_err = QLabel("")
+        self.s_err.setWordWrap(True)
+        l.addWidget(self.s_err)
+        ll.addWidget(c)
+
+        c, l = card(T("En direct"))
+        g = QGridLayout()
+        g.setHorizontalSpacing(8)
+        self.bars = {}
+        for i, (k, lab) in enumerate((("pos", T("Course")), ("force", T("Force")), ("joy", T("Axe envoyé au jeu")))):
+            g.addWidget(QLabel(lab), 2 * i, 0, 1, 2)
+            bar = AxisBar(color=(C["accent"], C["blue"], C["ok"])[i])
+            g.addWidget(bar, 2 * i + 1, 0)
+            v = QLabel("—")
+            v.setObjectName("midValue")
+            v.setMinimumWidth(90)
+            v.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            g.addWidget(v, 2 * i + 1, 1)
+            self.bars[k] = (bar, v)
+        g.setColumnStretch(0, 1)
+        l.addLayout(g)
+        ll.addWidget(c)
+
+        c, l = card(T("Actions"))
+        g = QGridLayout()
+        g.setSpacing(6)
+        self.b_beep = QPushButton(T("Identifier (bip)"))
+        self.b_beep.clicked.connect(lambda: self.m.action(self.port, T("bip d'identification"),
+                                                         systemAction_u8=PP.ACT_BEEP))
+        self.b_read = QPushButton(T("Relire"))
+        self.b_read.clicked.connect(lambda: self.m.request_config(self.port))
+        self.b_exp = QPushButton(T("Exporter…"))
+        self.b_exp.clicked.connect(self.export)
+        self.b_imp = QPushButton(T("Importer…"))
+        self.b_imp.setToolTip(T("Fichier JSON avec tous les champs de la configuration de la pédale."))
+        self.b_imp.clicked.connect(self.import_)
+        for i, b in enumerate((self.b_beep, self.b_read, self.b_exp, self.b_imp)):
+            g.addWidget(b, i // 2, i % 2)
+        l.addLayout(g)
+        ll.addWidget(c)
+
+        c, l = card(T("Messages"))
+        self.log = QPlainTextEdit()
+        self.log.setObjectName("console")
+        self.log.setReadOnly(True)
+        self.log.setMaximumBlockCount(300)
+        self.log.setToolTip(T("Messages texte envoyés par le firmware de la pédale."))
+        l.addWidget(self.log)
+        ll.addWidget(c, 1)
+
+        self.b_apply = QPushButton(T("Appliquer"))
+        self.b_apply.setToolTip(T("Envoie les réglages à la pédale sans les mémoriser (perdus au redémarrage)."))
+        self.b_apply.clicked.connect(lambda: self.send(False))
+        ll.addWidget(self.b_apply)
+        self.b_save = QPushButton(T("Enregistrer dans la pédale"))
+        self.b_save.setObjectName("primary")
+        self.b_save.clicked.connect(lambda: self.send(True))
+        ll.addWidget(self.b_save)
+        body.addWidget(left)
+
+        # ------------------------------------------- onglets de réglage
         inner = QWidget()
         il = QVBoxLayout(inner)
         il.setContentsMargins(0, 0, 6, 0)
         il.setSpacing(12)
         self.cards = []
-        for g in (PP.G_MAIN, PP.G_FX, PP.G_MECH, PP.G_CTRL):
-            c, l = card(g)
-            rows = []
-            for f in PP.PFIELDS:
-                if f.group == g:
-                    r = PRow(f)
-                    r.edited.connect(self._dirty)
-                    self.rows[f.name] = r
-                    rows.append(r)
-                    l.addWidget(r)
-            if g == PP.G_FX:
-                hb = QHBoxLayout()
-                b = QPushButton(T("Tester l'ABS (1 s)"))
-                b.setToolTip(T("Déclenche l'effet ABS pendant 1 seconde, sans jeu : appuie sur la pédale."))
-                b.clicked.connect(self.test_abs)
-                hb.addWidget(b)
-                hb.addStretch()
-                l.addLayout(hb)
-                l.addWidget(hint(T("En jeu, les effets (ABS, régime, patinage…) ne marchent que si un logiciel "
-                                   "envoie la télémétrie du jeu à la pédale (plugin SimHub de ChrGri). Les réglages "
-                                   "ci-dessus restent valables.")))
-            il.addWidget(c)
-            self.cards.append((c, rows))
-        c, l = card(T("Profils"))
+
+        self.curve = CurveEditor(T("Courbe de force"), PP.CURVE_TRAVEL, PP.CURVE_FORCE, "quantityOfControl_u8",
+                                 T("Course"), T("Force"))
+        self.curve.edited.connect(self._dirty)
+        self.joy = CurveEditor(T("Axe de jeu"), PP.JOY_ORIG, PP.JOY_MAP, "numOfJoystickMapControl_u8",
+                               T("Entrée"), T("Sortie"))
+        self.joy.edited.connect(self._dirty)
+        self.kin = KinematicsView()
+        self.kin_info = hint("")
+
+        pages = self._tab_group(il, PP.TABS_CURVE)
+        pages[PP.G_CURVE].addWidget(hint(T("Force demandée selon la course. Le point bleu montre la pédale en direct.")))
+        pages[PP.G_CURVE].addWidget(self.curve, 1)
+        pages[PP.G_KIN].insertWidget(0, self.kin, 1)
+        pages[PP.G_KIN].insertWidget(1, self.kin_info)
+        pages[PP.G_KIN].insertWidget(2, hint(T(
+            "O : pivot bas de la pédale · A : début de la course du chariot · B : articulation du capteur de force "
+            "sur le chariot · C : articulation du capteur sur la pédale · D : bout de la pédale (appui du pied). "
+            "Le trait rouge est la course utilisée (entre début et fin de course).")))
+        pages[PP.G_JOY].addWidget(hint(T("Valeur envoyée au jeu selon la force (ou la course). Linéaire par défaut.")))
+        pages[PP.G_JOY].addWidget(self.joy, 1)
+
+        self._tab_group(il, PP.TABS_GENERAL)
+
+        pages = self._tab_group(il, PP.TABS_FX, T("Effets"))
         hb = QHBoxLayout()
-        b1 = QPushButton(T("Exporter…"))
-        b1.clicked.connect(self.export)
-        b2 = QPushButton(T("Importer…"))
-        b2.clicked.connect(self.import_)
-        hb.addWidget(b1)
-        hb.addWidget(b2)
+        self.b_abs = QPushButton(T("Tester l'ABS (1 s)"))
+        self.b_abs.setToolTip(T("Déclenche l'effet ABS pendant 1 seconde, sans jeu : appuie sur la pédale."))
+        self.b_abs.clicked.connect(self.test_abs)
+        hb.addWidget(self.b_abs)
         hb.addStretch()
-        l.addLayout(hb)
-        l.addWidget(hint(T("Fichier JSON avec tous les champs de la configuration de la pédale.")))
-        il.addWidget(c)
+        pages[PP.G_ABS].addLayout(hb)
+        self.fx_card.layout().addWidget(hint(T(
+            "En jeu, les effets (ABS, régime, patinage…) ne marchent que si un logiciel envoie la télémétrie du jeu "
+            "à la pédale (plugin SimHub de ChrGri). Les réglages ci-dessus restent valables.")))
+        for pl in self._pages:
+            if pl not in self._curve_pages:      # courbes et schéma prennent toute la hauteur
+                pl.addStretch(1)
         il.addStretch()
+
         sc = QScrollArea()
         sc.setWidgetResizable(True)
         sc.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         sc.setWidget(inner)
-        sc.setMinimumWidth(430)
+        sc.setMinimumWidth(520)
         body.addWidget(sc, 1)
-
-        # ------------------------------------------- courbe + direct
-        right = QVBoxLayout()
-        right.setSpacing(12)
-        c, l = card(T("Courbe de force"))
-        l.addWidget(hint(T("Force demandée selon la course. Le point bleu montre la pédale en direct.")))
-        self.curve = CurveEditor(T("Courbe de force"), PP.CURVE_TRAVEL, PP.CURVE_FORCE, "quantityOfControl_u8",
-                                 T("Course"), T("Force"))
-        self.curve.edited.connect(self._dirty)
-        l.addWidget(self.curve, 1)
-        right.addWidget(c, 3)
-        self.joy_card, l = card(T("Courbe de l'axe de jeu"))
-        l.addWidget(hint(T("Valeur envoyée au jeu selon la force (ou la course). Linéaire par défaut.")))
-        self.joy = CurveEditor(T("Axe de jeu"), PP.JOY_ORIG, PP.JOY_MAP, "numOfJoystickMapControl_u8",
-                               T("Entrée"), T("Sortie"))
-        self.joy.edited.connect(self._dirty)
-        l.addWidget(self.joy, 1)
-        right.addWidget(self.joy_card, 2)
-        c, l = card(T("En direct"))
-        g = QGridLayout()
-        self.bars = {}
-        for i, (k, lab) in enumerate((("pos", T("Course")), ("force", T("Force")), ("joy", T("Axe envoyé au jeu")))):
-            g.addWidget(QLabel(lab), i, 0)
-            bar = AxisBar(color=(C["accent"], C["blue"], C["ok"])[i])
-            bar.setMinimumWidth(160)
-            g.addWidget(bar, i, 1)
-            v = QLabel("—")
-            v.setObjectName("midValue")
-            v.setMinimumWidth(130)
-            v.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            g.addWidget(v, i, 2)
-            self.bars[k] = (bar, v)
-        g.setColumnStretch(1, 1)
-        l.addLayout(g)
-        self.s_err = QLabel("")
-        self.s_err.setWordWrap(True)
-        l.addWidget(self.s_err)
-        self.log = QPlainTextEdit()
-        self.log.setObjectName("console")
-        self.log.setReadOnly(True)
-        self.log.setMaximumBlockCount(300)
-        self.log.setMaximumHeight(90)
-        self.log.setToolTip(T("Messages texte envoyés par le firmware de la pédale."))
-        l.addWidget(self.log)
-        right.insertWidget(0, c, 0)          # « En direct » en haut : visible pendant qu'on règle la courbe
-        body.addLayout(right, 1)
         root.addLayout(body, 1)
 
         self.m.changed.connect(self._refresh_list)
         self.m.config_read.connect(self._on_config)
         self.m.states.connect(self._on_states)
         self.m.text.connect(self._on_text)
-        self._show_adv(False)
         self._refresh_list()
         self._enable(False)
         t = QTimer(self)
         t.timeout.connect(self._status)
         t.start(500)
 
+    def _tab_group(self, parent_lay, groups, title=""):
+        """Carte contenant un onglet par groupe de réglages ; renvoie {groupe: layout de l'onglet}."""
+        c, l = card(title)
+        tw = QTabWidget()
+        tw.setDocumentMode(True)
+        pages = {}
+        for g in groups:
+            w = QWidget()
+            pl = QVBoxLayout(w)
+            pl.setContentsMargins(4, 10, 4, 4)
+            pl.setSpacing(2)
+            for f in PP.PFIELDS:
+                if f.group == g:
+                    r = PRow(f)
+                    r.edited.connect(self._dirty)
+                    self.rows[f.name] = r
+                    pl.addWidget(r)
+            pages[g] = pl
+            tw.addTab(w, g)
+        l.addWidget(tw, 1)
+        parent_lay.addWidget(c)
+        self._pages = getattr(self, "_pages", []) + list(pages.values())
+        if groups is PP.TABS_CURVE:
+            self._curve_pages = (pages[PP.G_CURVE], pages[PP.G_JOY], pages[PP.G_KIN])
+        if groups is PP.TABS_FX:
+            self.fx_card = c
+        return pages
+
     # ------------------------------------------------------------ sélection
     def _refresh_list(self):
         cur = self.port
         self.sel.blockSignals(True)
-        self.sel.clear()
+        while self.sel.count():
+            self.sel.removeTab(0)
+        tabs = {r: None for r in self.ROLES}
+        extra = []
         for p in self.m.pedals():
-            self.sel.addItem(p.name, p.port)
+            if p.tag in tabs and tabs[p.tag] is None:
+                tabs[p.tag] = p
+            else:
+                extra.append(p)
+        for r in self.ROLES:
+            p = tabs[r]
+            i = self.sel.addTab(PP.PEDAL_NAMES[r].upper())
+            self.sel.setTabData(i, p.port if p else None)
+            self.sel.setTabEnabled(i, p is not None)
+            self.sel.setTabToolTip(i, p.port if p else T("Pédale non branchée"))
+        for p in extra:
+            i = self.sel.addTab(p.name)
+            self.sel.setTabData(i, p.port)
+        ports = [self.sel.tabData(i) for i in range(self.sel.count())]
+        idx = ports.index(cur) if cur is not None and cur in ports else next((i for i, q in enumerate(ports) if q), -1)
+        if idx >= 0:
+            self.sel.setCurrentIndex(idx)
         self.sel.blockSignals(False)
-        if self.sel.count() == 0:
+        if idx < 0:
             self.port = None
+            self.cfg = None
             self._enable(False)
+            self.kin.set_cfg(None)
             self.status.setText(T("Aucune pédale détectée. Branche la pédale par son port USB « UART » (puce "
                                   "CH343/CP210x) et ferme SimHub."))
             return
-        i = self.sel.findData(cur)
-        self.sel.setCurrentIndex(i if i >= 0 else 0)
         self._select()
 
     def _select(self, *_):
-        port = self.sel.currentData()
-        if port == self.port and self.cfg is not None:
+        port = self.sel.tabData(self.sel.currentIndex()) if self.sel.currentIndex() >= 0 else None
+        if port is None or (port == self.port and self.cfg is not None):
             return
         self.port = port
         self.cfg = None
         self.hist.clear()
+        self.log.clear()
         info = self.m.info(port)
         if info and info.config:
             self._on_config(port, info.config)
         else:
             self._enable(False)
-            if port:
-                self.m.request_config(port)
+            self.m.request_config(port)
 
     def _enable(self, on):
-        for w in (self.b_apply, self.b_save, self.b_read, self.b_beep):
+        for w in (self.b_apply, self.b_save, self.b_read, self.b_beep, self.b_exp, self.b_imp, self.b_abs):
             w.setEnabled(on)
         for r in self.rows.values():
             r.setEnabled(on)
         self.curve.setEnabled(on)
         self.joy.setEnabled(on)
-
-    def _show_adv(self, on):
-        for c, rows in self.cards:
-            vis = False
-            for r in rows:
-                v = on or not r.f.adv
-                r.setVisible(v)
-                vis |= v
-            c.setVisible(vis)
-        self.joy_card.setVisible(on)
-        self.log.setVisible(on)
 
     # ------------------------------------------------------------ données
     def _on_config(self, port, cfg):
@@ -494,26 +656,19 @@ class PedalsTab(QWidget):
         self._enable(True)
         self._dirty()
         self.status.setText(self._status_text(info))
-        self._refresh_names()
-
-    def _refresh_names(self):
-        for i in range(self.sel.count()):
-            p = self.m.info(self.sel.itemData(i))
-            if p:
-                self.sel.setItemText(i, p.name)
 
     def _status_text(self, info):
         if not info:
             return ""
-        parts = [PP.PEDAL_NAMES.get(info.tag, "?") if info.tag is not None else "?",
+        if info.incompatible:
+            return T("Firmware incompatible (structure v{v}, attendu v{w}) : flashe le firmware fourni dans "
+                     "Pédales › Firmware.").format(v=info.version, w=PP.VERSION)
+        parts = [PP.PEDAL_NAMES.get(info.tag, "?") if info.tag is not None else "?", info.port,
                  T("firmware {v}").format(v=info.fw or "?"), f"{info.rate:.0f} " + T("états/s")]
         st = info.state or {}
         if st:
             parts.append(PP.SERVO_STATUS.get(st.get("servoStatus_u8"), "?"))
-        if info.incompatible:
-            return T("Firmware incompatible (structure v{v}, attendu v{w}) : flashe le firmware fourni dans "
-                     "Pédales › Firmware.").format(v=info.version, w=PP.VERSION)
-        return "  ·  ".join(parts)
+        return "\n".join(parts)
 
     def _status(self):
         info = self.m.info(self.port) if self.port else None
@@ -544,6 +699,9 @@ class PedalsTab(QWidget):
         self.bars["joy"][0].set(joy / 100)
         self.bars["joy"][1].setText(f"{joy:5.1f} %")
         self.curve.set_live(pos, frc)
+        if self.kin.isVisible():
+            self.kin.set_live(pos / 100)
+            self._kin_text()
         e = last.get("errorCode_u8", 0)
         if e:
             self.s_err.setText(T("Erreur {c} : {d}").format(c=e, d=PP.ERROR_CODES.get(e, T("code inconnu"))))
@@ -555,6 +713,15 @@ class PedalsTab(QWidget):
     def _on_text(self, port, line):
         if port == self.port:
             self.log.appendPlainText(line)
+
+    def _kin_text(self):
+        ang = self.kin.angles()
+        if ang:
+            self.kin_info.setText(T("Angle de la pédale : {c:.0f}°  ·  début de course {s:.0f}°  ·  fin de course "
+                                    "{e:.0f}°  ·  débattement {d:.0f}°").format(c=ang[0], s=ang[1], e=ang[2],
+                                                                               d=abs(ang[1] - ang[2])))
+        else:
+            self.kin_info.setText("")
 
     # ------------------------------------------------------------ modifications
     def _effective(self):
@@ -570,6 +737,8 @@ class PedalsTab(QWidget):
     def _dirty(self):
         n = sum(r.modified() for r in self.rows.values()) + int(self.curve.modified()) + int(self.joy.modified())
         self.b_apply.setText(T("Appliquer ({n})").format(n=n) if n else T("Appliquer"))
+        self.kin.set_cfg(self._effective())     # le schéma suit les cotes en cours de saisie
+        self._kin_text()
 
     def send(self, store):
         c = self._effective()

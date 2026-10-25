@@ -43,12 +43,17 @@ LEFT MENU
   Encoder         ODrive counters (total count, position in revolution, alignment, direction, phase
                   offset), Z pulse counter, 1 kHz position jump detection.
   PEDALS
-  Settings        Each plugged-in pedal shows up by itself (its Brake/Throttle/Clutch role is read from the
-                  pedal). Travel, preload and max force in kg, force curve (linear, progressive… presets)
-                  with the live pedal dot, test ABS, mechanics, servo.
+  Settings        Laid out like ChrGri's SimHub plugin. Top: Clutch / Brake / Throttle tabs (greyed when that
+                  pedal is not plugged in; its role is read from the pedal). Left: pedal info, live travel,
+                  force in kg and game axis, actions (beep, read back, export/import), firmware messages.
+                  Right, three groups of tabs:
+                    Force-travel curve (travel start/end, preload, max force, curve with presets and the
+                    live pedal dot) · Kinematics (schematic of the pedal with points O A B C D and the
+                    a b c d dimensions, pedal angle) · Game axis (axis source, max output, curve)
+                    General · Filter · Global effects · Servo · Dynamics
+                    Effects: ABS (with a 1 s test) · Engine RPM · Bite point · Wheel slip · G-force · Road impact
                   "Apply" = try without saving; "Save to pedal" = stored.
                   Settings are checked the way the firmware does before sending, then read back.
-                  "Advanced settings" box: filters, damping, dimensions, game axis curve, messages.
   Firmware        Flashes the pedal firmware (PCB V6) or the wireless receiver, no other software needed.
 
   TOOLS

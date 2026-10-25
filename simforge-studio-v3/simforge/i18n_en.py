@@ -1826,4 +1826,61 @@ EN = {
         'Settings rejected (the pedal would ignore them): {e}',
     '{n} champs manquants':
         '{n} fields missing',
+    # page Pédales › Réglages organisée comme le plugin SimHub
+    'ABS':
+        'ABS',
+    'Actions':
+        'Actions',
+    'Angle de la pédale : {c:.0f}°  ·  début de course {s:.0f}°  ·  fin de course {e:.0f}°  ·  débattement {d:.0f}°':
+        'Pedal angle: {c:.0f}°  ·  travel start {s:.0f}°  ·  travel end {e:.0f}°  ·  swing {d:.0f}°',
+    'Chocs de la route':
+        'Road impact',
+    'Cinématique':
+        'Kinematics',
+    'Cote a : capteur de force (B → C)':
+        'Dimension a: load cell (B → C)',
+    'Cote b : pivot → capteur (O → C)':
+        'Dimension b: pivot → load cell (O → C)',
+    'Cote c horizontale (O → A)':
+        'Dimension c horizontal (O → A)',
+    'Cote c verticale (hauteur de B)':
+        'Dimension c vertical (height of B)',
+    'Cote d : capteur → bout de pédale (C → D)':
+        'Dimension d: load cell → pedal tip (C → D)',
+    'Cotes impossibles : la pédale ne peut pas se monter ainsi':
+        'Impossible dimensions: the pedal cannot be assembled this way',
+    'Courbe force-course':
+        'Force-travel curve',
+    'Course du chariot (depuis A)':
+        'Sled travel (from A)',
+    'Dynamique':
+        'Dynamics',
+    'Effet G':
+        'G-force',
+    'Effets':
+        'Effects',
+    'Effets globaux':
+        'Global effects',
+    'Filtre':
+        'Filter',
+    'Général':
+        'General',
+    'Messages':
+        'Messages',
+    'O : pivot bas de la pédale · A : début de la course du chariot · B : articulation du capteur de force sur le chariot · C : articulation du capteur sur la pédale · D : bout de la pédale (appui du pied). Le trait rouge est la course utilisée (entre début et fin de course).':
+        'O: lower pedal pivot · A: start of the sled travel · B: load cell joint on the sled · C: load cell joint on the pedal · D: pedal tip (where the foot rests). The red line is the travel in use (between travel start and travel end).',
+    'Pas de configuration lue':
+        'No configuration read',
+    'Patinage des roues':
+        'Wheel slip',
+    'Point de patinage':
+        'Bite point',
+    'Pédale non branchée':
+        'Pedal not plugged in',
+    'Régime':
+        'Engine RPM',
+    'Servo':
+        'Servo',
+    'course {v} mm':
+        'travel {v} mm',
 }
