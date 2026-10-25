@@ -601,9 +601,9 @@ class PedalsTab(QWidget):
         # la carte V6 n'a ni buzzer ni LED pilotée (USING_BUZZER / USING_LED absents de son firmware) : le bip
         # d'identification (action 11) n'y fait rien ; une courte vibration ABS, elle, marche par le port série
         self.b_ident = QPushButton(T("Identifier"))
-        self.b_ident.setToolTip(T("Fait vibrer la pédale une demi-seconde pour la reconnaître. Si rien ne se passe, "
-                                  "pose le pied dessus : les effets ne jouent qu'au-dessus de « Force mini pour les "
-                                  "effets »."))
+        self.b_ident.setToolTip(T("Fait vibrer la pédale (et ronronner son moteur) une demi-seconde pour la "
+                                  "reconnaître, pied levé. Ses réglages ABS sont remplacés le temps de la vibration "
+                                  "puis remis ; les modifications en attente ne sont pas envoyées."))
         self.b_ident.clicked.connect(self.identify)
         self.b_read = QPushButton(T("Relire"))
         self.b_read.clicked.connect(self._reread)
@@ -902,7 +902,7 @@ class PedalsTab(QWidget):
 
     def _enable(self, on):
         for w in (self.b_apply, self.b_save, self.b_read, self.b_exp, self.b_imp, self.b_abs, self.b_alarm,
-                  self.diag_on):
+                  self.b_ident, self.diag_on):
             w.setEnabled(on)
         for r in self.rows.values():
             r.setEnabled(on)
@@ -957,7 +957,7 @@ class PedalsTab(QWidget):
         return "\n".join(parts)
 
     def _status(self):
-        for b in (self.b_ident, self.b_wake, self.b_restart, self.b_info):
+        for b in (self.b_wake, self.b_restart, self.b_info):
             b.setEnabled(self.port is not None)
         # une pédale qui change de rôle (Rôle de la pédale enregistré) doit changer d'onglet
         if self._roles() != self._roles_shown:
@@ -1085,18 +1085,42 @@ class PedalsTab(QWidget):
         if err:
             QMessageBox.warning(self, T("Pédale"), T("Réglages refusés (la pédale les ignorerait) : {e}").format(e=err))
 
+    # vibration d'identification : ABS sur la course, sans seuil de force (marche pied levé), quels que soient les
+    # réglages ABS de la pédale (amplitude 0 par défaut) ; la pédale reprend ensuite sa configuration
+    IDENT_ABS = dict(absAmplitude_u8=30, absFrequency_u8=15, absPattern_u8=0, absForceOrTarvelBit_u8=1,
+                     minForceForEffects_u8=0)
+
     def identify(self):
-        if not self.port:
+        if not self.port or self.cfg is None:
             return
-        port = self.port
-        self.m.action(port, T("vibration d'identification"), triggerAbs_u8=1)
-        QTimer.singleShot(500, lambda: self.m.action(port, "", triggerAbs_u8=0))
+        port, orig = self.port, dict(self.cfg)      # configuration de la pédale, sans les modifications en attente
+        if self.m.send_config(port, dict(orig, **self.IDENT_ABS), False, reread=False):
+            return
+        self._pulse_abs(port, 0.6, T("vibration d'identification"), lambda: self.m.send_config(port, orig, False))
 
     def test_abs(self):
         if not self.port:
             return
-        self.m.action(self.port, T("test ABS"), triggerAbs_u8=1)
-        QTimer.singleShot(1000, lambda: self.m.action(self.port, "", triggerAbs_u8=0))
+        self._pulse_abs(self.port, 1.0, T("test ABS"))
+
+    def _pulse_abs(self, port, seconds, what, then=None):
+        """Le firmware arrête l'ABS 100 ms après chaque déclenchement (le plugin le renvoie en continu) : un seul
+        envoi ne donnait qu'un dixième de seconde, imperceptible. On le renvoie toutes les 50 ms."""
+        t = QTimer(self)
+        end = time.monotonic() + seconds
+
+        def tick():
+            if time.monotonic() < end:
+                self.m.action(port, "", triggerAbs_u8=1)
+                return
+            t.stop()
+            t.deleteLater()
+            self.m.action(port, "", triggerAbs_u8=0)
+            if then:
+                then()
+        t.timeout.connect(tick)
+        t.start(50)
+        self.m.action(port, what, triggerAbs_u8=1)
 
     def export(self):
         c = self._effective()

@@ -271,3 +271,29 @@ def test_import_profil_pedale_complet(qapp, tmp_path, monkeypatch):
         {k: prof[k] for k in ("cvAmp1_u8", "gWindow_u8", "maxForce_fl32")}
     tab._on_config("DEMO-FREIN", dict(prof))            # relu après envoi : plus rien en attente
     assert tab._extra == {}
+
+
+def test_identifier_vibre_vraiment(qapp):
+    """Un seul déclenchement ABS ne dure que 100 ms dans le firmware, et l'amplitude ABS vaut 0 par défaut :
+    « Identifier » ne faisait rien. Il impose un ABS sur la course, le relance toutes les 50 ms puis remet la
+    configuration de la pédale."""
+    import time as _t
+    from simforge import tab_pedals
+    from simforge.ped_device import PedalManager
+    tab = tab_pedals.PedalsTab(PedalManager(demo=True))
+    tab.port = "DEMO-FREIN"
+    cfg = PP.default_config()
+    cfg["absAmplitude_u8"] = 0
+    tab._on_config("DEMO-FREIN", dict(cfg))
+    sent, acts = [], []
+    tab.m = SimpleNamespace(send_config=lambda p, c, store, **k: sent.append((dict(c), store, k)) or "",
+                            action=lambda p, what="", **k: acts.append(k.get("triggerAbs_u8")))
+    tab.identify()
+    end = _t.monotonic() + 1.0
+    while _t.monotonic() < end:
+        qapp.processEvents()
+        _t.sleep(0.01)
+    assert sent[0][0]["absAmplitude_u8"] > 0 and sent[0][0]["absForceOrTarvelBit_u8"] == 1
+    assert sent[0][2] == {"reread": False} and not sent[0][1]
+    assert sent[-1][0] == cfg                           # configuration de la pédale remise
+    assert acts.count(1) >= 8 and acts[-1] == 0         # relancé pendant ~0,6 s, puis arrêté

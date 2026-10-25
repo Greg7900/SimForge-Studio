@@ -413,7 +413,7 @@ class PedalManager(QObject):
         if l:
             l.send(PP.build_action(tag=l.info.tag or 0, returnPedalConfig_u8=1))
 
-    def send_config(self, port, cfg: dict, store: bool, clear_alarms=False):
+    def send_config(self, port, cfg: dict, store: bool, clear_alarms=False, reread=True):
         l = self.links.get(port)
         if not l:
             return T("pédale non connectée")
@@ -431,7 +431,8 @@ class PedalManager(QObject):
             what = T("configuration mémorisée") if store else T("configuration appliquée")
         l.send(PP.build_config(c, store=store, tag=l.info.tag or 0), what)
         # relecture pour confirmer ce que la pédale a retenu (l'effacement des alarmes la fige 1 s)
-        QTimer.singleShot(1600 if clear_alarms else 400, lambda: self.request_config(port))
+        if reread:
+            QTimer.singleShot(1600 if clear_alarms else 400, lambda: self.request_config(port))
         return ""
 
     def action(self, port, what="", **kw):

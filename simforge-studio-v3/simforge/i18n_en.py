@@ -1784,10 +1784,10 @@ EN = {
         'states/s',
     'Identifier':
         'Identify',
-    "Fait vibrer la pédale une demi-seconde pour la reconnaître. Si rien ne se passe, pose le pied dessus : les "
-    "effets ne jouent qu'au-dessus de « Force mini pour les effets ».":
-        'Makes the pedal vibrate for half a second so you can tell which one it is. If nothing happens, rest your '
-        'foot on it: effects only play above "Minimum force for effects".',
+    "Fait vibrer la pédale (et ronronner son moteur) une demi-seconde pour la reconnaître, pied levé. Ses réglages "
+    "ABS sont remplacés le temps de la vibration puis remis ; les modifications en attente ne sont pas envoyées.":
+        'Makes the pedal vibrate (and its motor hum) for half a second so you can tell which one it is, foot off. '
+        'Its ABS settings are replaced during the vibration, then restored; pending changes are not sent.',
     "vibration d'identification":
         'identify vibration',
     "bip d'identification":
