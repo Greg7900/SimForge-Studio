@@ -20,7 +20,14 @@ class WheelGuard(QObject):
     TYPES = (QAbstractSpinBox, QComboBox, QAbstractSlider, QTabBar)
 
     def eventFilter(self, obj, ev):
-        if ev.type() != QEvent.Wheel or not isinstance(obj, self.TYPES) or isinstance(obj, QScrollBar) \
+        t = ev.type()
+        if t == QEvent.Polish and isinstance(obj, self.TYPES) \
+                and obj.focusPolicy() & Qt.WheelFocus == Qt.WheelFocus:
+            # par défaut un champ numérique prend le focus au premier cran de molette (avant ce filtre) : il
+            # garderait alors la molette. Il ne le prend plus qu'au clic ou à la touche Tab.
+            obj.setFocusPolicy(Qt.StrongFocus)
+            return False
+        if t != QEvent.Wheel or not isinstance(obj, self.TYPES) or isinstance(obj, QScrollBar) \
                 or obj.hasFocus():
             return False
         p = obj.parentWidget()
