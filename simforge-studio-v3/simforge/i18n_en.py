@@ -1915,4 +1915,24 @@ EN = {
         'Filter speed (1 = smooth … 255 = fast)',
     "Plus haut : la pédale suit plus vite le pied mais le bruit du capteur passe davantage (vibration, surtout quand la pédale bouge doucement). Plus bas : plus calme mais plus lourd.\nAvec le filtre IMM, c'est la vitesse en mouvement : 1 ≈ 5 Hz, 128 ≈ 17 Hz, 255 ≈ 60 Hz.":
         'Higher: the pedal follows the foot faster but more load cell noise gets through (vibration, mostly when the pedal moves slowly). Lower: calmer but heavier.\nWith the IMM filter, this is the speed while moving: 1 ≈ 5 Hz, 128 ≈ 17 Hz, 255 ≈ 60 Hz.',
+    'Réveiller':
+        'Wake up',
+    "Réveille le servo mis en veille (LED rouge, deux bips après la « Mise en veille du servo » de l'onglet Servo). Appuyer fort sur la pédale le réveille aussi.":
+        'Wakes up a servo put to sleep (red LED, two beeps after the “Servo sleep” time of the Servo tab). Pressing the pedal hard also wakes it up.',
+    'réveil de la pédale':
+        'pedal wake-up',
+    'Redémarrer':
+        'Restart',
+    'Redémarre la pédale (comme débrancher/rebrancher son alimentation USB).':
+        'Restarts the pedal (like unplugging and replugging its USB power).',
+    'Infos firmware':
+        'Firmware info',
+    "Demande à la pédale d'écrire ses informations dans les messages.":
+        'Asks the pedal to print its information in the messages.',
+    'infos firmware':
+        'firmware info',
+    'Redémarrer la pédale ? Les réglages non enregistrés seront perdus.':
+        'Restart the pedal? Settings that were not saved will be lost.',
+    'redémarrage de la pédale':
+        'pedal restart',
 }

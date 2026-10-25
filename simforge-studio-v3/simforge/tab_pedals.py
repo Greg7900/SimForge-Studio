@@ -606,7 +606,21 @@ class PedalsTab(QWidget):
         self.b_imp = QPushButton(T("Importer…"))
         self.b_imp.setToolTip(T("Fichier JSON avec tous les champs de la configuration de la pédale."))
         self.b_imp.clicked.connect(self.import_)
-        for i, b in enumerate((self.b_beep, self.b_read, self.b_exp, self.b_imp)):
+        # restent utilisables même sans configuration lue : c'est justement quand la pédale est bloquée qu'on en a besoin
+        self.b_wake = QPushButton(T("Réveiller"))
+        self.b_wake.setToolTip(T("Réveille le servo mis en veille (LED rouge, deux bips après la « Mise en veille du "
+                                 "servo » de l'onglet Servo). Appuyer fort sur la pédale le réveille aussi."))
+        self.b_wake.clicked.connect(lambda: self.m.action(self.port, T("réveil de la pédale"),
+                                                         systemAction_u8=PP.ACT_WAKEUP))
+        self.b_restart = QPushButton(T("Redémarrer"))
+        self.b_restart.setToolTip(T("Redémarre la pédale (comme débrancher/rebrancher son alimentation USB)."))
+        self.b_restart.clicked.connect(self.restart)
+        self.b_info = QPushButton(T("Infos firmware"))
+        self.b_info.setToolTip(T("Demande à la pédale d'écrire ses informations dans les messages."))
+        self.b_info.clicked.connect(lambda: self.m.action(self.port, T("infos firmware"),
+                                                         systemAction_u8=PP.ACT_PRINT_INFO))
+        for i, b in enumerate((self.b_beep, self.b_read, self.b_exp, self.b_imp, self.b_wake, self.b_restart,
+                               self.b_info)):
             g.addWidget(b, i // 2, i % 2)
         l.addLayout(g)
         ll.addWidget(c)
@@ -779,6 +793,7 @@ class PedalsTab(QWidget):
         self.cfg = None
         self.hist.clear()
         self.log.clear()
+        self._last_line = None
         info = self.m.info(port)
         if info and info.config:
             self._on_config(port, info.config)
@@ -822,6 +837,8 @@ class PedalsTab(QWidget):
         return "\n".join(parts)
 
     def _status(self):
+        for b in (self.b_wake, self.b_restart, self.b_info):
+            b.setEnabled(self.port is not None)
         # une pédale qui change de rôle (Rôle de la pédale enregistré) doit changer d'onglet
         if self._roles() != self._roles_shown:
             self._refresh_list()
@@ -865,8 +882,14 @@ class PedalsTab(QWidget):
             self.s_err.setStyleSheet(f"color: {C['ok']};")
 
     def _on_text(self, port, line):
-        if port == self.port:
-            self.log.appendPlainText(line)
+        if port != self.port:
+            return
+        # une ligne répétée telle quelle (ex. « [ESPNOW TX] Unhealthy … (EMPTY) » toutes les 5 s sans récepteur
+        # sans fil) n'est affichée qu'une fois, pour ne pas noyer les autres messages
+        if line == getattr(self, "_last_line", None):
+            return
+        self._last_line = line
+        self.log.appendPlainText(line)
 
     def _kin_text(self):
         ang = self.kin.angles()
@@ -918,6 +941,11 @@ class PedalsTab(QWidget):
         err = self.m.send_config(self.port, c, store)
         if err:
             QMessageBox.warning(self, T("Pédale"), T("Réglages refusés (la pédale les ignorerait) : {e}").format(e=err))
+
+    def restart(self):
+        if self.port and QMessageBox.question(self, T("Redémarrer"), T("Redémarrer la pédale ? Les réglages non "
+                                                                     "enregistrés seront perdus.")) == QMessageBox.Yes:
+            self.m.action(self.port, T("redémarrage de la pédale"), systemAction_u8=PP.ACT_RESTART)
 
     def test_abs(self):
         if not self.port:
