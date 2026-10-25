@@ -263,7 +263,8 @@ G_GF = T("Effet G")
 G_ROAD = T("Chocs de la route")
 TABS_CURVE = [G_CURVE, G_KIN, G_JOY]
 G_DIAG = T("Diagnostic servo")
-TABS_GENERAL = [G_GEN, G_FILT, G_GLOB, G_SERVO, G_DYN, G_DIAG]
+G_AUTO = T("Auto-test (bêta)")
+TABS_GENERAL = [G_GEN, G_FILT, G_GLOB, G_SERVO, G_DYN, G_DIAG, G_AUTO]
 TABS_FX = [G_ABS, G_RPM, G_BP, G_WS, G_GF, G_ROAD]
 
 PFIELDS = [

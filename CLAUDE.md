@@ -11,7 +11,8 @@ Tout le code est dans `simforge-studio-v3/` :
 - Pédales : `ped_layout.py` (structures binaires générées depuis les en-têtes C de ChrGri, ne pas éditer à la main),
   `ped_protocol.py` (trames, `VERSION` de structure = 174, contrôles `plausible()`, catalogue `PFIELDS` des réglages affichés,
   chacun rangé dans un groupe `G_*`), `ped_device.py` (`PedalManager`, un thread par port, pédales simulées en démo),
-  `tab_pedals.py` (page Réglages), `tab_pedal_fw.py` (flashage).
+  `tab_pedals.py` (page Réglages), `ped_autotune.py` (onglet Auto-test bêta : filtre et amortissement sans
+  oscillation, via l'état détaillé), `tab_pedal_fw.py` (flashage).
 - `widgets.py` (`card`, `hint`, `AxisBar`…, `WheelGuard` : filtre global installé par `app.py`, la molette ne modifie
   un champ que s'il a été cliqué), `theme.py` (couleurs `C`, feuille de style `QSS`).
 - `firmware/` : binaires des pédales et du récepteur (licence CC BY-NC-SA de ChrGri). Ne jamais modifier les `.bin`.

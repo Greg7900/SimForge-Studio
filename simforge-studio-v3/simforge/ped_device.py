@@ -31,6 +31,11 @@ ESPRESSIF_VID = 0x303A
 EXCLUDE_VIDPID = {(0x1209, 0x0D40)}      # Odrive-Wheel
 
 
+def new_ext_acc():
+    """Cumuls sur les états détaillés : nombre, trames « en oscillation », force brute (kg) et sa somme des carrés."""
+    return {"n": 0, "osc": 0, "r": 0.0, "rr": 0.0}
+
+
 class PedalInfo:
     def __init__(self, port):
         self.port = port
@@ -41,6 +46,7 @@ class PedalInfo:
         self.config = None
         self.ext = None             # dernier état détaillé (debugFlags0 bit 64), pour le diagnostic du servo
         self.ext_vmax = 0.0         # tension du servo la plus haute vue depuis la dernière remise à zéro (V)
+        self.ext_acc = new_ext_acc()  # cumuls de l'auto-test (remis à zéro par lui)
         self.rate = 0.0
         self.incompatible = False
         self.last_rx = 0.0
@@ -116,7 +122,12 @@ class FakePedalPort:
                 ex = {n: (0 if c == 1 else [0] * c) for n, _t, c in PP.STATE_EXT_FIELDS}
                 ex.update(servoVoltage0p1V_i16=int(self._v * 10), servoCurrentPercent_i16=int(pos * 60),
                           servoPositionError_i16=int(vel * 3), servoVelocityRpm_i16=int(vel * 300),
-                          brakeResistorState_b=1 if self._v > 40 else 0)
+                          brakeResistorState_b=1 if self._v > 40 else 0,
+                          pedalForceRaw_fl32=pos * 60 + random.gauss(0, 0.3),
+                          pedalForceFiltered_fl32=pos * 60,
+                          admittance_isOscillating=1 if (self.cfg["kfModelNoise_u8"] > 140
+                                                         and self.cfg["virtualPedalDampingInPercent_u8"] < 150
+                                                         and abs(vel) > 0.05 and random.random() < 0.3) else 0)
                 self.out += PP.frame(PP.T_STATE_EXT, PP._pack(PP.STATE_EXT_FIELDS, PP.STATE_EXT_S, ex), tag=self.tag)
         b = bytes(self.out)
         self.out.clear()
@@ -217,6 +228,11 @@ class PedalLink(QThread):
                         elif fr.ptype == PP.T_STATE_EXT and fr.data:
                             info.ext = fr.data
                             info.ext_vmax = max(info.ext_vmax, fr.data["servoVoltage0p1V_i16"] / 10)
+                            a, raw = info.ext_acc, fr.data["pedalForceRaw_fl32"]
+                            a["n"] += 1
+                            a["osc"] += 1 if fr.data["admittance_isOscillating"] else 0
+                            a["r"] += raw
+                            a["rr"] += raw * raw
                         elif fr.ptype == PP.T_CONFIG:
                             info.config = fr.data
                             mgr.config_read.emit(info.port, dict(fr.data))

@@ -1969,4 +1969,65 @@ EN = {
         'off',
     "Prévu pour la mise à zéro (démarrage, réveil) : le chariot avance jusqu'à ce que le courant du servo dépasse ce seuil, en % de son courant, et le firmware y place la butée (10 à 50 %).\nSans effet avec le firmware fourni (ChrGri, commit 7564dad) : StepperWithLimits.cpp ignore la valeur reçue et garde toujours 30 %.":
         'Meant for homing (power-up, wake-up): the sled moves until the servo current exceeds this threshold, in % of its current, and the firmware puts the endstop there (10 to 50 %).\nNo effect with the bundled firmware (ChrGri, commit 7564dad): StepperWithLimits.cpp ignores the received value and always keeps 30 %.',
+    # auto-test des pédales
+    "Bêta. Cherche le réglage de filtre le plus réactif qui ne fait pas vibrer la pédale : filtre IMM adaptatif, puis vitesse du filtre de 255 à 64, puis amortissement si besoin. Environ 1 à 2 min. Rien n'est enregistré dans la pédale pendant le test ; tes modifications en attente ne sont pas envoyées. Garde le pied sur la pédale et suis les consignes ; « Arrêter » remet tes réglages.":
+        'Beta. Looks for the most responsive filter setting that does not make the pedal vibrate: IMM adaptive filter, then filter speed from 255 down to 64, then damping if needed. About 1 to 2 min. Nothing is stored in the pedal during the test; your pending changes are not sent. Keep your foot on the pedal and follow the instructions; “Stop” puts your settings back.',
+    "Lancer l'auto-test":
+        'Start the auto-test',
+    'Arrêter':
+        'Stop',
+    'Auto-test arrêté : réglages de départ remis.':
+        'Auto-test stopped: starting settings restored.',
+    'Enregistrer ce réglage dans la pédale':
+        'Save this setting to the pedal',
+    "Revenir aux réglages d'avant":
+        'Go back to the previous settings',
+    'Réglage refusé, auto-test arrêté : {e}':
+        'Setting rejected, auto-test stopped: {e}',
+    'Auto-test lancé sur {p}.':
+        'Auto-test started on {p}.',
+    'Étape 1 : bruit du capteur':
+        'Step 1: load cell noise',
+    'Pose le pied sur la pédale SANS appuyer, et ne bouge plus.':
+        'Rest your foot on the pedal WITHOUT pressing, and keep still.',
+    'Vitesse du filtre {s}, amortissement {d} %':
+        'Filter speed {s}, damping {d} %',
+    'Attends… puis appuie et relâche doucement, plusieurs fois, comme quand ça vibrait.':
+        'Wait… then press and release slowly, several times, like when it vibrated.',
+    'Pédale déconnectée : auto-test arrêté.':
+        'Pedal disconnected: auto-test stopped.',
+    'Appuie et relâche doucement, plusieurs fois… (mesure en cours)':
+        'Press and release slowly, several times… (measuring)',
+    "La pédale n'envoie pas son état détaillé : auto-test impossible avec ce firmware.":
+        'The pedal does not send its detailed state: auto-test not possible with this firmware.',
+    'Bruit du capteur au repos : {n:.2f} kg (écart type).':
+        'Load cell noise at rest: {n:.2f} kg (standard deviation).',
+    'Pédale trop peu bougée ({t:.0f} % de course) : on recommence ce palier.':
+        'Pedal moved too little ({t:.0f} % of travel): repeating this step.',
+    'Pédale toujours trop peu bougée : palier compté tel quel.':
+        'Pedal still moved too little: step counted as is.',
+    'Vitesse {s}, amortissement {d} % : {o:.1f} % du temps en oscillation → {r}':
+        'Speed {s}, damping {d} %: {o:.1f} % of the time oscillating → {r}',
+    'stable':
+        'stable',
+    'vibre':
+        'vibrates',
+    "Tous les paliers vibrent : essai avec plus d'amortissement.":
+        'Every step vibrates: trying more damping.',
+    'Résultat : vitesse du filtre {s}, amortissement {d} %':
+        'Result: filter speed {s}, damping {d} %',
+    "Réglage appliqué (pas encore enregistré). Essaie la pédale, puis garde-le ou reviens à tes réglages d'avant.":
+        'Setting applied (not stored yet). Try the pedal, then keep it or go back to your previous settings.',
+    'Aucun réglage stable trouvé':
+        'No stable setting found',
+    "Même au plus calme, la pédale vibre : réglages d'avant remis. Vérifie la mécanique (jeu, frottements), la précharge et le début de la courbe de force.":
+        'Even at the calmest setting the pedal vibrates: previous settings restored. Check the mechanics (play, friction), the preload and the start of the force curve.',
+    'Enregistrer ce réglage de filtre dans la pédale ?':
+        'Save this filter setting to the pedal?',
+    'Réglage enregistré dans la pédale.':
+        'Setting saved to the pedal.',
+    "Réglages d'avant remis (rien n'a été enregistré).":
+        'Previous settings restored (nothing was stored).',
+    'Auto-test (bêta)':
+        'Auto-test (beta)',
 }

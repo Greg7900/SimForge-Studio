@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, Q
                                QPlainTextEdit, QTabBar)
 
 from . import ped_protocol as PP
+from .ped_autotune import AutoTune
 from .i18n import T
 from .theme import C
 from .widgets import card, hint, repolish, AxisBar, TabPages, StatRow
@@ -685,6 +686,8 @@ class PedalsTab(QWidget):
 
         pages = self._tab_group(il, PP.TABS_GENERAL)
         self._build_diag(pages[PP.G_DIAG])
+        self.autotune = AutoTune(self)
+        pages[PP.G_AUTO].addWidget(self.autotune)
 
         pages = self._tab_group(il, PP.TABS_FX, T("Effets"))
         hb = QHBoxLayout()
@@ -923,6 +926,7 @@ class PedalsTab(QWidget):
         self.diag_on.setChecked(bool(cfg["debugFlags0_u8"] & PP.DBG_EXT_STATE))
         self.diag_on.blockSignals(False)
         self._enable(True)
+        self.autotune.refresh()
         self._dirty()
         self.status.setText(self._status_text(info))
 
