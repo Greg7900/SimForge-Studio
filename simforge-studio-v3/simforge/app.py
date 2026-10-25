@@ -572,6 +572,8 @@ class MainWindow(QMainWindow):
             QApplication.quit()
 
     def closeEvent(self, e):
+        for tab in (self.monitor, self.joy):    # enregistrement CSV en cours : fermé proprement (données vidées)
+            tab.b_log.setChecked(False)
         self.overlay.shutdown()
         self.force.stop_all()
         self.b.stop()

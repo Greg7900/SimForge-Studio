@@ -1,16 +1,32 @@
 """Widgets communs."""
 from __future__ import annotations
 
+import json
 import math
+import os
 
 from PySide6.QtCore import Qt, Signal, QRectF, QPointF, QObject, QEvent
-from PySide6.QtGui import QPainter, QColor, QPen, QBrush, QFont
+from PySide6.QtGui import QPainter, QColor, QPen
 from PySide6.QtWidgets import (QFrame, QLabel, QVBoxLayout, QHBoxLayout, QWidget, QSlider,
-                               QSpinBox, QCheckBox, QComboBox, QSizePolicy, QApplication, QAbstractSpinBox,
-                               QAbstractSlider, QScrollBar, QTabBar, QAbstractScrollArea, QStackedWidget)
+                               QSpinBox, QComboBox, QSizePolicy, QApplication, QAbstractSpinBox,
+                               QAbstractSlider, QScrollBar, QTabBar, QAbstractScrollArea, QStackedWidget,
+                               QMessageBox)
+
+import pyqtgraph as pg
 
 from .theme import C
 from .i18n import T
+
+# réglage commun de tous les graphiques (avant, fait dans deux pages et hérité par les autres selon l'ordre d'import)
+pg.setConfigOptions(antialias=False, background=C["panel"], foreground=C["dim"])
+
+
+def grid(plot):
+    """Grille des graphiques : graduations principales seulement. Les niveaux secondaires de pyqtgraph, redessinés
+    en transparence à chaque image, coûtaient environ la moitié du processeur de la page Codeur."""
+    plot.showGrid(x=True, y=True, alpha=0.15)
+    for ax in ("left", "bottom"):
+        plot.getAxis(ax).setStyle(maxTickLevel=0)
 
 
 class WheelGuard(QObject):
@@ -79,6 +95,26 @@ class TabPages(QWidget):
         self.bar.setTabVisible(i, on)
         if not on and self.bar.currentIndex() == i:
             self.bar.setCurrentIndex(0)
+
+
+def save_json(parent, path, data, **dump_kw) -> bool:
+    """Écrit un profil JSON sans risque de fichier à moitié écrit : fichier temporaire à côté, puis remplacement
+    d'un coup. En cas d'erreur, l'ancien fichier reste intact et un message s'affiche. Renvoie True si écrit."""
+    tmp = path + ".tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, **dump_kw)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, path)
+        return True
+    except (OSError, TypeError, ValueError) as e:      # disque, droits… ou donnée non sérialisable
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        QMessageBox.warning(parent, T("Exporter"), T("Écriture impossible : {e}").format(e=e))
+        return False
 
 
 def card(title: str = "", parent=None):
@@ -363,111 +399,6 @@ class SettingRow(QWidget):
             if w and w.property("modified") != m:
                 w.setProperty("modified", m)
                 repolish(w)
-
-
-class CheckRow(QWidget):
-    """Case à cocher pour un réglage ±1 ou 0/1."""
-    edited = Signal(object)
-
-    def __init__(self, label: str, on_value=1, off_value=0, tip="", warn=False, parent=None):
-        super().__init__(parent)
-        self.on_value, self.off_value = on_value, off_value
-        self.device_value = None
-        self.title = label
-        lay = QHBoxLayout(self)
-        lay.setContentsMargins(0, 2, 0, 2)
-        self.box = QCheckBox(("⚠ " if warn else "") + label)
-        if tip:
-            self.setToolTip(tip)
-        lay.addWidget(self.box)
-        lay.addStretch()
-        self._raw = None          # valeur carte inattendue (ni on ni off), conservée tant qu'on n'y touche pas
-        self._label = self.box.text()
-        self.box.toggled.connect(self._toggled)
-
-    def _toggled(self, _):
-        self._raw = None
-        self.box.setText(self._label)
-        self._mark()
-        self.edited.emit(self.value())
-
-    def value(self):
-        if self._raw is not None:
-            return self._raw
-        return self.on_value if self.box.isChecked() else self.off_value
-
-    def set_value(self, v):
-        self.box.blockSignals(True)
-        self.box.setChecked(v == self.on_value)
-        self.box.blockSignals(False)
-        if v not in (self.on_value, self.off_value):
-            self._raw = v
-            self.box.setText(self._label + "  — " + T("valeur carte inattendue : {v}").format(v=v))
-        else:
-            self._raw = None
-            self.box.setText(self._label)
-        self._mark()
-
-    def set_device(self, v):
-        self.device_value = v
-        self.set_value(v)
-
-    def modified(self):
-        return self.device_value is not None and self.value() != self.device_value
-
-    def _mark(self):
-        self.box.setProperty("modified", "true" if self.modified() else "false")
-        repolish(self.box)
-
-
-class ComboRow(QWidget):
-    edited = Signal(object)
-
-    def __init__(self, label: str, items: list[str], tip="", warn=False, label_width=210, parent=None):
-        super().__init__(parent)
-        self.device_value = None
-        self.title = label
-        lay = QHBoxLayout(self)
-        lay.setContentsMargins(0, 2, 0, 2)
-        l = QLabel(("⚠ " if warn else "") + label)
-        l.setMinimumWidth(label_width)
-        if warn:
-            l.setObjectName("warnText")
-        if tip:
-            self.setToolTip(tip)
-        self.combo = QComboBox()
-        for i, it in enumerate(items):
-            self.combo.addItem(it, i)
-        lay.addWidget(l)
-        lay.addStretch()
-        lay.addWidget(self.combo)
-        self.combo.currentIndexChanged.connect(lambda i: (self._mark(), self.edited.emit(self.value())))
-
-    def value(self):
-        d = self.combo.currentData()
-        return int(d) if d is not None else self.combo.currentIndex()
-
-    def set_value(self, v):
-        v = int(v)
-        self.combo.blockSignals(True)
-        i = self.combo.findData(v)
-        if i < 0:  # valeur que la liste ne connaît pas : on l'affiche au lieu de la remplacer
-            self.combo.addItem(T("Valeur inconnue ({v})").format(v=v), v)
-            i = self.combo.count() - 1
-        self.combo.setCurrentIndex(i)
-        self.combo.blockSignals(False)
-        self._mark()
-
-    def set_device(self, v):
-        self.device_value = int(v)
-        self.set_value(v)
-
-    def modified(self):
-        return self.device_value is not None and self.value() != self.device_value
-
-    def _mark(self):
-        self.combo.setProperty("modified", "true" if self.modified() else "false")
-        repolish(self.combo)
 
 
 class StatRow(QWidget):

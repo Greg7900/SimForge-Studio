@@ -23,8 +23,6 @@ EN = {
         'Monitor',
     'Codeur':
         'Encoder',
-    'Console':
-        'Console',
     'Journal':
         'Log',
     'Recentrer le volant':
@@ -65,8 +63,6 @@ EN = {
         'Safety cut-off',
     'DÉMO':
         'DEMO',
-    'Toutes les commandes envoyées et les événements de connexion.':
-        'Every command sent and every connection event.',
     'Firmware':
         'Firmware',
     'Version de firmware':
@@ -89,8 +85,6 @@ EN = {
         'The board will leave wheel mode and wait for new firmware (STM32CubeProgrammer, USB). It returns to the current firmware after unplugging/replugging if nothing is flashed. Continue?',
     'STOP ENCLENCHÉ — RÉARMER':
         'STOP LATCHED — RELEASE',
-    '  —  DÉMO (carte simulée)':
-        '  —  DEMO (simulated board)',
     'Connecté':
         'Connected',
     'Port série seul (pas de télémétrie HID)':
@@ -1439,8 +1433,6 @@ EN = {
         '{d} counts for {c} set ({e} %).',
     'Valeur lue dans la carte ({v}) hors de la plage habituelle : affichée telle quelle.':
         'Value read from the board ({v}) is outside the usual range: shown as is.',
-    'valeur carte inattendue : {v}':
-        'unexpected board value: {v}',
     # ---- V3 : pédales, menu
     'Pédales actives détectées (port série de chaque pédale)':
         "Active pedals detected (each pedal's serial port)",
@@ -1480,12 +1472,6 @@ EN = {
         'Pedal {p}: incompatible firmware (structure v{v}, SimForge expects v{w}). Flash the supplied firmware (Pedals › Firmware).',
     'Pédale':
         'Pedal',
-    'Effets (ABS, régime, point de patinage…)':
-        'Effects (ABS, RPM, bite point…)',
-    'Mécanique de la pédale':
-        'Pedal mechanics',
-    'Régulation et servo':
-        'Control and servo',
     'Embrayage':
         'Clutch',
     'Frein':
@@ -1564,18 +1550,6 @@ EN = {
         'G-force: multiplier',
     'Chocs de la route : multiplicateur':
         'Road impacts: multiplier',
-    'Course mécanique':
-        'Mechanical travel',
-    'Cote A':
-        'Dimension A',
-    'Cote B':
-        'Dimension B',
-    'Cote C horizontale':
-        'Dimension C horizontal',
-    'Cote C verticale':
-        'Dimension C vertical',
-    'Cote D':
-        'Dimension D',
     'Pas de la vis à billes':
         'Ball screw pitch',
     'Capacité du capteur de force':
@@ -1604,10 +1578,6 @@ EN = {
         'End stop stiffness',
     'Zone de la butée':
         'End stop zone',
-    'Filtre de force (Kalman) : bruit du modèle':
-        'Force filter (Kalman): model noise',
-    'Filtre de force : ordre du modèle':
-        'Force filter: model order',
     "Filtre de l'axe de jeu":
         'Game axis filter',
     "Filtre de l'axe de jeu : bruit":
@@ -1632,8 +1602,6 @@ EN = {
         'load cell rating ≥ 20 kg',
     'rôle de pédale invalide':
         'invalid pedal role',
-    "Choisit l'axe de manette et les effets reçus.":
-        'Selects the game controller axis and the effects received.',
     'Position de repos de la pédale, en % de la course mécanique.':
         'Pedal rest position, in % of the mechanical travel.',
     'Force à fond de course (frein : souvent 40 à 80 kg avec un capteur de 100 kg).':
@@ -1770,8 +1738,6 @@ EN = {
         'Import…',
     'Courbe de force':
         'Force curve',
-    "Courbe de l'axe de jeu":
-        'Game axis curve',
     'Axe de jeu':
         'Game axis',
     'Entrée':
@@ -1800,10 +1766,6 @@ EN = {
         'Regressive',
     'Fichier JSON avec tous les champs de la configuration de la pédale.':
         'JSON file with every field of the pedal configuration.',
-    'Force demandée selon la course. Le point bleu montre la pédale en direct.':
-        'Requested force versus travel. The blue dot shows the pedal live.',
-    'Valeur envoyée au jeu selon la force (ou la course). Linéaire par défaut.':
-        'Value sent to the game versus force (or travel). Linear by default.',
     'Aucune pédale détectée. Branche la pédale par son port USB « UART » (puce CH343/CP210x) et ferme SimHub.':
         'No pedal detected. Plug the pedal in through its "UART" USB port (CH343/CP210x chip) and close SimHub.',
     'états/s':
@@ -1881,8 +1843,6 @@ EN = {
         'Engine RPM',
     'Servo':
         'Servo',
-    'course {v} mm':
-        'travel {v} mm',
     'Clique sur une cote du schéma pour la modifier (Entrée pour valider, Échap pour annuler). Les cotes modifiées sont en orange.':
         'Click a dimension on the drawing to change it (Enter to confirm, Esc to cancel). Changed dimensions are shown in orange.',
     'course':
@@ -1917,8 +1877,6 @@ EN = {
         'Higher: the pedal follows the foot faster but more load cell noise gets through (vibration, mostly when the pedal moves slowly). Lower: calmer but heavier.\nWith the IMM filter, this is the speed while moving: 1 ≈ 5 Hz, 128 ≈ 17 Hz, 255 ≈ 60 Hz.',
     'Réveiller':
         'Wake up',
-    "Réveille le servo mis en veille (LED rouge, deux bips après la « Mise en veille du servo » de l'onglet Servo). Appuyer fort sur la pédale le réveille aussi.":
-        'Wakes up a servo put to sleep (red LED, two beeps after the “Servo sleep” time of the Servo tab). Pressing the pedal hard also wakes it up.',
     'réveil de la pédale':
         'pedal wake-up',
     'Redémarrer':
@@ -2030,4 +1988,21 @@ EN = {
         'Previous settings restored (nothing was stored).',
     'Auto-test (bêta)':
         'Auto-test (beta)',
+    # fiabilité
+    'Déjà réglé ainsi dans la carte.':
+        'Already set this way in the board.',
+    'Enregistrement arrêté : {e}':
+        'Recording stopped: {e}',
+    'Préparé mais pas envoyé : vérifie les valeurs en orange dans Réglages puis « Appliquer ».':
+        'Prepared but not sent: check the orange values in Settings, then “Apply”.',
+    'Pédale {p} : envoi impossible, port perdu ({e})':
+        'Pedal {p}: cannot send, port lost ({e})',
+    'Réglages pas encore lus dans la carte : {l}. Relis la carte puis réessaie.':
+        'Settings not read from the board yet: {l}. Read the board again, then retry.',
+    "Test impossible : l'effet DirectInput n'a pas pu être lancé ({e}).":
+        'Test not possible: the DirectInput effect could not be started ({e}).',
+    'valeurs non numériques : {l}':
+        'non-numeric values: {l}',
+    'Écriture impossible : {e}':
+        'Cannot write: {e}',
 }

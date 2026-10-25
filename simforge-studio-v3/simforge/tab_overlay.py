@@ -9,14 +9,15 @@ import json
 import time
 from collections import deque
 
-from PySide6.QtCore import Qt, QTimer, QPoint, QSettings
+from PySide6.QtCore import Qt, QTimer, QPoint
 from PySide6.QtGui import QColor, QPainter, QFont
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QPushButton, QLabel,
                                QCheckBox, QComboBox, QSpinBox, QApplication, QScrollArea)
 
 from . import ow_protocol as P
+from . import i18n
 from .i18n import T
-from .theme import C, MONO
+from .theme import C
 from .widgets import card, hint, SettingRow
 
 # clé, libellé, unité
@@ -43,6 +44,13 @@ METRICS = [
 DEFAULT = {"show": ["angle", "torque", "torque_bar", "clipping", "vbus", "ibus", "pbrake", "status"],
            "opacity": 85, "font": 13, "horizontal": False, "clickthrough": False, "pos": None,
            "curves": False, "curve_s": 10}
+
+
+def _valid(key, v):
+    """Préférence relue du registre : même type que la valeur par défaut (pos : None ou [x, y])."""
+    if key == "pos":
+        return v is None or (isinstance(v, list) and len(v) == 2 and all(isinstance(c, (int, float)) for c in v))
+    return isinstance(v, type(DEFAULT[key]))
 
 
 class OverlayPanel(QWidget):
@@ -350,25 +358,24 @@ class OverlayTab(QWidget):
         t.start(50)
 
     # -------------------------------------------------------- config
-    @staticmethod
-    def _settings():
-        return QSettings("SimForge", "SimForge Studio V3")
-
     def _load(self):
         cfg = json.loads(json.dumps(DEFAULT))
         try:
-            raw = self._settings().value("overlay", "")
+            raw = i18n.settings().value("overlay", "")
             if raw:
                 d = json.loads(raw)
-                cfg.update({k: v for k, v in d.items() if k in cfg})
+                # seulement les clés connues, du même type que la valeur par défaut : une préférence abîmée ne
+                # doit pas empêcher l'appli de démarrer
+                cfg.update({k: v for k, v in d.items() if k in cfg and _valid(k, v)})
         except Exception:
             pass
-        cfg["show"] = [k for k in cfg["show"] if k in {m[0] for m in METRICS}]
+        known = {m[0] for m in METRICS}
+        cfg["show"] = [k for k in cfg["show"] if isinstance(k, str) and k in known]
         return cfg
 
     def _save(self):
         try:
-            self._settings().setValue("overlay", json.dumps(self.cfg))
+            i18n.settings().setValue("overlay", json.dumps(self.cfg))
         except Exception:
             pass
 

@@ -14,19 +14,13 @@ import time
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton, QCheckBox,
                                QComboBox, QDoubleSpinBox, QSlider, QScrollArea, QFileDialog,
-                               QMessageBox, QSizePolicy)
+                               QMessageBox)
 
+from . import i18n
 from . import ow_protocol as P
 from .i18n import T
 from .theme import C
-from .widgets import card, hint, repolish, StatRow, TabPages
-
-
-def _num(s):
-    try:
-        return float(s)
-    except (TypeError, ValueError):
-        return None
+from .widgets import card, hint, repolish, StatRow, TabPages, save_json
 
 
 # ======================================================================
@@ -359,8 +353,7 @@ class SettingsTab(QWidget):
         self.adv.setToolTip(T("Affiche aussi les réglages rarement utiles (filtres détaillés, égaliseur, courbe, "
                               "boucles de régulation, températures, entrées GPIO). Leurs valeurs d'usine conviennent."))
         try:
-            from PySide6.QtCore import QSettings
-            self.adv.setChecked(QSettings("SimForge", "SimForge Studio V3").value("advanced", "false") == "true")
+            self.adv.setChecked(i18n.settings().value("advanced", "false") == "true")
         except Exception:
             pass
         self.live.setToolTip(T("Les réglages volant/effets sont envoyés dès qu'on les change (comme l'outil web). "
@@ -418,8 +411,7 @@ class SettingsTab(QWidget):
             c.setVisible(any_vis)
         self.tabs.setTabVisible(self.gpio_index, on)
         try:
-            from PySide6.QtCore import QSettings
-            QSettings("SimForge", "SimForge Studio V3").setValue("advanced", "true" if on else "false")
+            i18n.settings().setValue("advanced", "true" if on else "false")
         except Exception:
             pass
 
@@ -646,8 +638,8 @@ class SettingsTab(QWidget):
             self.id_rows["serial"].setToolTip(T("Réponse limitée à 9 caractères par le firmware : n° tronqué.")
                                               if len(sn) >= 9 else "")
         if g("axis.zeroofs") is not None:
-            self.id_rows["zero"].set(f"{_num(g('axis.zeroofs')) or 0:+.1f} °")
-        se = _num(g("error"))
+            self.id_rows["zero"].set(f"{P.to_float(g('axis.zeroofs')) or 0:+.1f} °")
+        se = P.to_float(g("error"))
         if se is not None and hasattr(self, "s_syserr"):
             errs = P.decode("system", int(se))
             self.s_syserr.setText("\n".join(f"✖ {n} — {d}" for n, d in errs) if errs else T("Aucune erreur système."))
@@ -687,13 +679,14 @@ class SettingsTab(QWidget):
         paths = [p for p in self.pending if self.rows[p].f.store == "ffb" and not self.rows[p].f.critical]
         self._send(paths)
 
-    def _flush(self):
+    def _flush(self) -> bool:
+        """Envoie les modifications en attente ; False si rien n'est parti (rien à envoyer, carte absente, annulé)."""
         paths = list(self.pending)
         if not paths:
-            return
+            return False
         if not self.b.serial_ok:
             QMessageBox.warning(self, T("Appliquer"), T("La carte n'est pas connectée."))
-            return
+            return False
         crit = [p for p in paths if self.rows[p].f.critical and self.rows[p].f.store == "odrive"]
         st = self.b.state
         if crit and st not in (P.IDLE, None):
@@ -702,17 +695,18 @@ class SettingsTab(QWidget):
                                     T("Ces réglages ne doivent être changés que moteur au repos :\n{n}\n\nMettre "
                                       "le moteur au repos (il devient libre) puis appliquer ?").format(n=names)) \
                     != QMessageBox.Yes:
-                return
+                return False
             self.b.request_state(P.IDLE)
         bad = [x for x in safety_checks(self._effective(), self.vbus) if x[0] == "bad"]
         if bad and QMessageBox.warning(self, T("Contrôles de cohérence"),
                                        T("Problèmes détectés :\n\n{p}\n\nAppliquer quand même ?").format(
                                            p="\n\n".join("• " + t for _l, t in bad)),
                                        QMessageBox.Yes | QMessageBox.No, QMessageBox.No) != QMessageBox.Yes:
-            return
+            return False
         # ordre : alimentation d'abord, puis le reste
         paths.sort(key=lambda p: (0 if p.startswith(("sys.vbusdiv", "config.")) else 1, p))
         self._send(paths)
+        return True
 
     def _send(self, paths):
         for p in paths:
@@ -819,12 +813,8 @@ class SettingsTab(QWidget):
 
     # ---------------------------------------------------------------- profils
     def export_profile(self):
-        vals = {}
-        for p, r in self.rows.items():
-            if r.read_ok and not r.f.ro:
-                vals[p] = r.f.fmt(r.device)
-            elif r.read_ok and r.f.ro:
-                vals[p] = r.f.fmt(r.device)
+        # lecture seule comprise (version, n° de série…), comme l'export de l'outil web Odrive-Wheel
+        vals = {p: r.f.fmt(r.device) for p, r in self.rows.items() if r.read_ok}
         if not vals:
             QMessageBox.information(self, T("Exporter"), T("Rien à exporter : réglages pas encore lus."))
             return
@@ -832,8 +822,8 @@ class SettingsTab(QWidget):
                                             time.strftime("odrive_config_%Y-%m-%d_%H-%M.json"), "JSON (*.json)")
         if not fn:
             return
-        with open(fn, "w", encoding="utf-8") as fh:
-            json.dump(vals, fh, indent=2, ensure_ascii=False)
+        if not save_json(self, fn, vals, indent=2, ensure_ascii=False):
+            return
         self.import_lbl.setText(T("Exporté : {f} ({n} réglages).").format(f=fn, n=len(vals)))
 
     def import_profile(self):
@@ -854,7 +844,9 @@ class SettingsTab(QWidget):
         changed, same, unknown, unread, refused = 0, 0, [], [], []
         for p, txt in data.items():
             r = self.rows.get(p)
-            if r is None or r.f.ro:
+            if r is not None and r.f.ro:
+                continue                    # lecture seule (version, n° de série…) : exportée, jamais réécrite
+            if r is None:
                 unknown.append(p)
                 continue
             if not r.read_ok:

@@ -8,14 +8,13 @@ import numpy as np
 import pyqtgraph as pg
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QPushButton, QLabel, QFileDialog,
-                               QScrollArea)
+                               QMessageBox, QScrollArea)
 
 from . import ow_protocol as P
 from .i18n import T
 from .theme import C
-from .widgets import card, hint, ValueReadout, WheelDial, CenterBar, StatRow
+from .widgets import card, hint, ValueReadout, WheelDial, CenterBar, StatRow, grid
 
-pg.setConfigOptions(antialias=False, background=C["panel"], foreground=C["dim"])
 
 N = 16000          # ~16 s à 1 kHz
 COLS = ["t", "pos", "vel", "iq", "tq", "vbus", "ibus", "ibrk"]
@@ -38,16 +37,29 @@ class Ring:
         self.i = (i + 1) % self.n
         self.count = min(self.count + 1, self.n)
 
-    def last(self, seconds, max_pts=2500):
+    def last(self, seconds, bins=1000):
+        """Les `seconds` dernières secondes. Au-delà de 2 × bins échantillons, chaque tranche est réduite à son
+        minimum et son maximum (dans l'ordre où ils arrivent) : aucun pic n'est perdu, contrairement à un
+        échantillon sur N, et la courbe garde au plus 2 × bins points (≈ la largeur d'un graphique en pixels)."""
         if not self.count:
             return None
         idx = (np.arange(self.i - self.count, self.i)) % self.n
         t = self.d["t"][idx]
-        keep = t >= t[-1] - seconds
-        idx = idx[keep]
-        step = max(1, len(idx) // max_pts)
-        idx = idx[::step]
-        return {k: v[idx] for k, v in self.d.items()}
+        idx = idx[t >= t[-1] - seconds]
+        step = len(idx) // bins
+        if step < 2:
+            return {k: v[idx] for k, v in self.d.items()}
+        idx = idx[len(idx) - step * bins:]          # tranches complètes, les plus récentes
+        out = {"t": self.d["t"][idx].reshape(bins, step)[:, [0, -1]].ravel()}
+        for k, v in self.d.items():
+            if k == "t":
+                continue
+            seg = v[idx].reshape(bins, step)
+            a, b = seg.argmin(axis=1), seg.argmax(axis=1)
+            first, second = np.minimum(a, b), np.maximum(a, b)
+            rows = np.arange(bins)
+            out[k] = np.column_stack((seg[rows, first], seg[rows, second])).ravel()
+        return out
 
     def clear(self):
         self.i = self.count = 0
@@ -219,7 +231,7 @@ class MonitorTab(QWidget):
 
     def _plot(self, title, unit=None):
         p = pg.PlotWidget()
-        p.showGrid(x=True, y=True, alpha=0.15)
+        grid(p)
         p.setLabel("left", title, unit)
         p.setMenuEnabled(False)
         p.setMouseEnabled(x=False, y=False)
@@ -228,14 +240,7 @@ class MonitorTab(QWidget):
         p.enableAutoRange(x=False, y=False)
         p.setXRange(-self.WINDOW_S, 0, padding=0)
         p.getAxis("left").setWidth(52)
-        _plot = p.plot
-
-        def plot(*a, **k):          # toutes les courbes : sous-échantillonnage « pics » + seulement la zone vue
-            c = _plot(*a, **k)
-            c.setDownsampling(auto=True, method="peak")
-            c.setClipToView(True)
-            return c
-        p.plot = plot
+        # pas de sous-échantillonnage pyqtgraph : Ring.last réduit déjà à la résolution de l'écran, pics compris
         return p
 
     # ------------------------------------------------------------
@@ -253,7 +258,12 @@ class MonitorTab(QWidget):
             if not path:
                 self.b_log.setChecked(False)
                 return
-            self.log_file = open(path, "w", newline="", encoding="utf-8")
+            try:
+                self.log_file = open(path, "w", newline="", encoding="utf-8")
+            except OSError as e:            # ex. fichier ouvert dans Excel : Windows le verrouille
+                QMessageBox.warning(self, T("Fichier CSV"), T("Écriture impossible : {e}").format(e=e))
+                self.b_log.setChecked(False)
+                return
             self.log_writer = csv.writer(self.log_file, delimiter=";")
             self.log_writer.writerow(["t_s", "angle_deg", "vitesse_dps", "couple_Nm", "iq_A", "vbus_V", "ibus_A",
                                       "ibrake_A", "fet_C", "etat", "err_axe", "err_moteur", "err_codeur", "err_ctrl"])
@@ -261,7 +271,10 @@ class MonitorTab(QWidget):
             self.b_log.setText(T("■ Arrêter l'enregistrement"))
         else:
             if self.log_file:
-                self.log_file.close()
+                try:
+                    self.log_file.close()
+                except OSError:
+                    pass                    # erreur déjà signalée ; le fichier est inutilisable de toute façon
             self.log_file = self.log_writer = None
             self.b_log.setText(T("Enregistrer en CSV…"))
 
@@ -279,11 +292,15 @@ class MonitorTab(QWidget):
             pk["spd"] = max(pk["spd"], abs(tm.vel * 360))
             pk["brk"] = max(pk["brk"], tm.ibrake)
             if self.log_writer:
-                self.log_writer.writerow([f"{tm.t - self._t0:.4f}", f"{tm.pos:.3f}", f"{tm.vel * 360:.1f}",
-                                          f"{tm.torque:.3f}", f"{tm.iq:.3f}", f"{tm.vbus:.2f}", f"{tm.ibus:.2f}",
-                                          f"{tm.ibrake:.2f}", "" if tm.fet_c is None else f"{tm.fet_c:.0f}", tm.state,
-                                          f"0x{tm.axis_err:08X}", f"0x{tm.motor_err:08X}", f"0x{tm.enc_err:08X}",
-                                          f"0x{tm.ctrl_err:08X}"])
+                try:
+                    self.log_writer.writerow([
+                        f"{tm.t - self._t0:.4f}", f"{tm.pos:.3f}", f"{tm.vel * 360:.1f}", f"{tm.torque:.3f}",
+                        f"{tm.iq:.3f}", f"{tm.vbus:.2f}", f"{tm.ibus:.2f}", f"{tm.ibrake:.2f}",
+                        "" if tm.fet_c is None else f"{tm.fet_c:.0f}", tm.state, f"0x{tm.axis_err:08X}",
+                        f"0x{tm.motor_err:08X}", f"0x{tm.enc_err:08X}", f"0x{tm.ctrl_err:08X}"])
+                except OSError as e:        # disque plein, clé retirée… : on arrête une fois, pas à chaque paquet
+                    self.b_log.setChecked(False)
+                    QMessageBox.warning(self, T("Fichier CSV"), T("Enregistrement arrêté : {e}").format(e=e))
         self._rate_n += len(batch)
         self.last = batch[-1]
 

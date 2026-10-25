@@ -4,7 +4,6 @@ from __future__ import annotations
 import time
 from collections import deque
 
-import numpy as np
 import pyqtgraph as pg
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QPushButton, QLabel, QScrollArea,
@@ -13,7 +12,8 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, Q
 from . import ow_protocol as P
 from .i18n import T
 from .theme import C
-from .widgets import card, hint, StatRow
+from .tab_monitor import Ring
+from .widgets import card, hint, StatRow, grid
 
 POLL = ["axis0.encoder.shadow_count", "axis0.encoder.count_in_cpr", "axis0.encoder.pos_estimate",
         "axis0.encoder.vel_estimate", "axis0.encoder.is_ready", "axis0.encoder.index_found",
@@ -23,21 +23,13 @@ CFG = ["axis0.encoder.config.mode", "axis0.encoder.config.cpr", "axis0.encoder.c
        "axis0.motor.config.pole_pairs"]
 
 
-def _f(s):
-    try:
-        return float(s)
-    except (TypeError, ValueError):
-        return None
-
-
 class EncoderTab(QWidget):
     def __init__(self, board, settings, parent=None):
         super().__init__(parent)
         self.b = board
         self.settings = settings
         self.vals = {}
-        self.t = deque(maxlen=12000)
-        self.p = deque(maxlen=12000)
+        self.ring = Ring()                  # même tampon que le Moniteur : courbe réduite sans perdre les sauts
         self.prev = None
         self.jumps = 0
         self.samples = 0
@@ -138,7 +130,7 @@ class EncoderTab(QWidget):
         g.addLayout(th, 1, 1)
         l.addLayout(g)
         self.plot = pg.PlotWidget()
-        self.plot.showGrid(x=True, y=True, alpha=0.15)
+        grid(self.plot)
         self.plot.setLabel("left", T("Angle"), "°")
         self.plot.setMenuEnabled(False)
         self.plot.setMouseEnabled(x=False, y=False)
@@ -150,8 +142,6 @@ class EncoderTab(QWidget):
         self._yr = None
         self._t_yr = 0.0
         self.curve = self.plot.plot(pen=pg.mkPen(C["accent"], width=1.6))
-        self.curve.setDownsampling(auto=True, method="peak")
-        self.curve.setClipToView(True)
         self.marks = pg.ScatterPlotItem(size=8, brush=pg.mkBrush(C["bad"]), pen=None)
         self.plot.addItem(self.marks)
         self.jump_pts = deque(maxlen=200)
@@ -210,7 +200,7 @@ class EncoderTab(QWidget):
                 if v is None:
                     self.s[k].set("—")
                 elif k == "axis0.encoder.error":
-                    e = int(_f(v) or 0)
+                    e = int(P.to_float(v) or 0)
                     names = [n for n, _d in P.decode("encoder", e)]
                     self.s[k].set(", ".join(names) if names else "0", C["bad"] if e else C["ok"])
                 elif k in ("axis0.encoder.is_ready", "axis0.encoder.index_found"):
@@ -218,10 +208,10 @@ class EncoderTab(QWidget):
                     self.s[k].set(T("oui") if on else T("non"),
                                   (C["ok"] if on else C["warn"]) if k.endswith("is_ready") else None)
                 elif k in ("axis0.encoder.pos_estimate", "axis0.encoder.vel_estimate"):
-                    x = _f(v)
+                    x = P.to_float(v)
                     self.s[k].set(f"{x:+.4f}" if x is not None else v)
                 elif k == "axis.zhits":
-                    n = int(_f(v) or 0)
+                    n = int(P.to_float(v) or 0)
                     self.s[k].set(str(n), C["warn"] if n and g("axis0.encoder.config.use_index") == "0" else None)
                 else:
                     self.s[k].set(v)
@@ -231,17 +221,17 @@ class EncoderTab(QWidget):
             if v is None or k not in self.s:
                 continue
             if k == "axis0.encoder.config.mode":
-                self.s[k].set(modes.get(int(_f(v) or 0), v))
+                self.s[k].set(modes.get(int(P.to_float(v) or 0), v))
             elif k in ("axis0.encoder.config.use_index", "axis0.encoder.config.pre_calibrated"):
                 self.s[k].set(T("oui") if v.strip() == "1" else T("non"))
             elif k == "axis0.encoder.config.direction":
-                d = int(_f(v) or 0)
+                d = int(P.to_float(v) or 0)
                 self.s[k].set({1: "+1", -1: "−1", 0: T("0 (pas encore calibré)")}.get(d, v),
                               C["warn"] if d == 0 else None)
             else:
-                x = _f(v)
+                x = P.to_float(v)
                 self.s[k].set(f"{x:g}" if x is not None else v)
-        cpr, pp = _f(g("axis0.encoder.config.cpr")), _f(g("axis0.motor.config.pole_pairs"))
+        cpr, pp = P.to_float(g("axis0.encoder.config.cpr")), P.to_float(g("axis0.motor.config.pole_pairs"))
         if cpr and pp:
             per = cpr / pp
             self.s["cpr_pp"].set(f"{per:.0f}")
@@ -268,8 +258,7 @@ class EncoderTab(QWidget):
         thr = self.thr.value()
         hr = self.b.half_range or 450.0
         for tm in batch:
-            self.t.append(tm.t)
-            self.p.append(tm.pos)
+            self.ring.push(tm)
             if self.prev is not None:
                 pt, pp, pv = self.prev
                 dt = tm.t - pt
@@ -290,24 +279,21 @@ class EncoderTab(QWidget):
             self.prev = (tm.t, tm.pos, tm.vel)
 
     def refresh(self):
-        if not self.isVisible() or not self.t:
+        if not self.isVisible() or not self.ring.count:
             return
         self.q_samples.set(str(self.samples))
         self.q_jumps.set(str(self.jumps), C["bad"] if self.jumps else C["ok"])
         self.q_dev.set(f"{self.max_dev:.2f}")
-        t1 = self.t[-1]
-        n = len(self.t)
-        k = max(1, n // 2500)
-        tt = np.array(list(self.t)[::k]) - t1
-        pp = np.array(list(self.p)[::k])
-        m = tt >= -10
-        self.curve.setData(tt[m], pp[m])
+        d = self.ring.last(10.0)
+        t1 = self.ring.d["t"][self.ring.i - 1]
+        pp = d["pos"]
+        self.curve.setData(d["t"] - t1, pp)
         jp = [(t - t1, p) for t, p in self.jump_pts if t1 - t <= 10]
         self.marks.setData([x for x, _ in jp], [y for _, y in jp])
         now = time.perf_counter()
-        if len(pp[m]) and now - self._t_yr > 0.5:
+        if len(pp) and now - self._t_yr > 0.5:
             self._t_yr = now
-            lo, hi = float(pp[m].min()), float(pp[m].max())
+            lo, hi = float(pp.min()), float(pp.max())
             span = max(hi - lo, 5.0)
             lo, hi = lo - span * 0.15, hi + span * 0.15
             if not self._yr or lo < self._yr[0] or hi > self._yr[1] or (hi - lo) < (self._yr[1] - self._yr[0]) / 3:

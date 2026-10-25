@@ -11,7 +11,7 @@ from __future__ import annotations
 import math
 import time
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QProgressBar,
                                QPlainTextEdit, QMessageBox)
 

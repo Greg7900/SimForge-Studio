@@ -8,7 +8,6 @@ from __future__ import annotations
 from .i18n import T
 
 import ctypes
-import os
 
 SDL_OK = False
 SDL_ERR = ""

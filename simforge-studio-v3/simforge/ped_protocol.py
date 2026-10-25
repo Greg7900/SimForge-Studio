@@ -84,6 +84,9 @@ def _pack(fields, s, d):
     return s.pack(*vals)
 
 
+_NOT_TEXT = bytes(c for c in range(256) if not (32 <= c < 127 or c in (9, 10, 13)))
+
+
 @dataclass
 class Frame:
     ptype: int
@@ -150,14 +153,17 @@ class Parser:
         return out
 
     def _text(self, b: bytes):
+        # les octets d'une trame abîmée (ou coupée à l'ouverture du port) arrivent ici : on ne garde que le texte
+        # ASCII, sinon ils se collaient à la ligne suivante et la faisaient rejeter en entier
+        b = b.translate(None, _NOT_TEXT)
         if not b:
             return
         self.text += b
         while b"\n" in self.text:
             line, _, rest = bytes(self.text).partition(b"\n")
             self.text = bytearray(rest)
-            s = line.decode("latin-1", "replace").strip("\r ")
-            if s and sum(32 <= ord(ch) < 127 for ch in s) > len(s) * 0.8:
+            s = line.decode("ascii").strip("\r\t ")
+            if sum(ch.isalpha() for ch in s) >= 3:      # pas de ligne faite seulement de restes binaires
                 self.lines.append(s)
         if len(self.text) > 600:
             self.text.clear()

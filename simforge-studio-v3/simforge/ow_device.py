@@ -658,6 +658,8 @@ class SerialThread(QThread):
         paths += [f"gpio.{p}.{n}" for p in P.GPIO_PINS for n in P.GPIO_FIELDS]
         out = {}
         for i, p in enumerate(paths):
+            if not self._run:
+                return                          # fermeture de l'appli : inutile de finir
             self._service_urgent()
             out[p] = self._get(p)
             if i % 12 == 11:
@@ -813,7 +815,7 @@ class HidThread(QThread):
         self._t_last = time.perf_counter()
 
     def run(self):
-        batch, t_emit, next_try = [], time.perf_counter(), 0.0
+        next_try = 0.0
         while self._run:
             now = time.perf_counter()
             if self.dev is None:
@@ -828,11 +830,16 @@ class HidThread(QThread):
             except Exception as e:
                 self._lost(f"{type(e).__name__}: {e}")
                 continue
-            if tm is not None:
+            if tm is None:
+                continue
+            try:
                 self._watch(tm)
-                self.b.last = tm
-                with self.b.tm_lock:
-                    self.b.tm_buf.append(tm)      # vidé par l'IHM à 30 Hz (pas de file de signaux qui s'accumule)
+            except Exception as e:  # ne jamais laisser mourir le thread : il porte la surveillance de survitesse
+                self.b.log.emit("error", f"{type(e).__name__}: {e}")
+                self.b.log.emit("debug", traceback.format_exc())
+            self.b.last = tm
+            with self.b.tm_lock:
+                self.b.tm_buf.append(tm)          # vidé par l'IHM à 30 Hz (pas de file de signaux qui s'accumule)
         self._close()
 
     # -------------------------------------------------------- source
@@ -897,7 +904,7 @@ class HidThread(QThread):
             return P.parse_report(P.build_report(tm), tm.t, hr)
         try:
             r = self.dev.read(256, 50)            # tampon large : Windows refuse un tampon plus court que le rapport
-        except (OSError, IOError, ValueError) as e:
+        except (OSError, ValueError):
             # erreur ponctuelle (Windows) : on ne lâche la liaison que si elle dure
             now = time.perf_counter()
             self._stats["err"] = self._stats.get("err", 0) + 1

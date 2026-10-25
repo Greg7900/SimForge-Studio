@@ -10,10 +10,10 @@ from collections import deque
 import pyqtgraph as pg
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QPushButton, QLabel,
-                               QComboBox, QFileDialog, QCheckBox)
+                               QComboBox, QFileDialog, QCheckBox, QMessageBox)
 
 from .theme import C
-from .widgets import card, hint, Led, AxisBar
+from .widgets import card, hint, Led, AxisBar, grid
 
 AXIS_NAMES = []  # SDL ne donne pas le nom des axes DirectInput : on numérote, sans supposer X, Y, Rz…
 AXIS_COLORS = [C["accent"], "#e5484d", C["blue"], "#c2c24c", "#b07ce8", "#3fb7b0", "#5a7cf2", "#e86fbf"]
@@ -67,7 +67,7 @@ class JoyTab(QWidget):
         self.ax_widgets = []
         l.addStretch()
         self.plot = pg.PlotWidget()
-        self.plot.showGrid(x=True, y=True, alpha=0.15)
+        grid(self.plot)
         self.plot.setYRange(-32768, 32767)
         self.plot.setMenuEnabled(False)
         self.plot.setMouseEnabled(x=False, y=False)
@@ -197,14 +197,22 @@ class JoyTab(QWidget):
             if not path:
                 self.b_log.setChecked(False)
                 return
-            self.log = open(path, "w", newline="", encoding="utf-8")
+            try:
+                self.log = open(path, "w", newline="", encoding="utf-8")
+            except OSError as e:            # ex. fichier ouvert dans Excel : Windows le verrouille
+                QMessageBox.warning(self, T("Journal"), T("Écriture impossible : {e}").format(e=e))
+                self.b_log.setChecked(False)
+                return
             self.logw = csv.writer(self.log, delimiter=";")
             self._t0 = time.perf_counter()
             self._log_header = False
             self.b_log.setText(T("■ Arrêter le journal"))
         else:
             if self.log:
-                self.log.close()
+                try:
+                    self.log.close()
+                except OSError:
+                    pass
             self.log = self.logw = None
             self.b_log.setText(T("Journal CSV…"))
 
@@ -240,8 +248,13 @@ class JoyTab(QWidget):
                 else:
                     c.setData([])
         if self.logw:
-            if not self._log_header:
-                self.logw.writerow(["t_s"] + [f"axe{i + 1}" for i in range(len(axes))] +
-                                   [f"b{i + 1}" for i in range(len(btns))] + [f"pov{i + 1}" for i in range(len(hats))])
-                self._log_header = True
-            self.logw.writerow([f"{time.perf_counter() - self._t0:.4f}", *axes, *[int(b) for b in btns], *hats])
+            try:
+                if not self._log_header:
+                    self.logw.writerow(["t_s"] + [f"axe{i + 1}" for i in range(len(axes))] +
+                                       [f"b{i + 1}" for i in range(len(btns))] +
+                                       [f"pov{i + 1}" for i in range(len(hats))])
+                    self._log_header = True
+                self.logw.writerow([f"{time.perf_counter() - self._t0:.4f}", *axes, *[int(b) for b in btns], *hats])
+            except OSError as e:            # disque plein, clé retirée… : on arrête une fois
+                self.b_log.setChecked(False)
+                QMessageBox.warning(self, T("Journal"), T("Enregistrement arrêté : {e}").format(e=e))

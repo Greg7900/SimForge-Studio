@@ -301,10 +301,22 @@ class SetupTab(QWidget):
                                 T("Fais d'abord la calibration moteur (étape 3) : « moteur déjà calibré » "
                                   "n'a de sens qu'après."))
             return
+        rows = self.settings.rows
+        unread = [p for p in want if p not in rows or not rows[p].read_ok]      # vérifié avant de rien modifier
+        if unread:
+            self.s7.result(T("Réglages pas encore lus dans la carte : {l}. Relis la carte puis réessaie.")
+                           .format(l=", ".join(unread)), "bad")
+            return
         for p, v in want.items():
             self.settings.on_edit(p, v)
-            self.settings.rows[p]._style("pending")
-        self.settings._flush()
+        # _send (via _flush) marque lui-même les lignes « envoyé » ; rien n'est marqué si l'envoi est annulé
+        if not self.settings._flush():
+            if self.settings.pending:
+                self.s7.result(T("Préparé mais pas envoyé : vérifie les valeurs en orange dans Réglages puis "
+                                 "« Appliquer »."), "warn")
+            else:
+                self.s7.result(T("Déjà réglé ainsi dans la carte."), "ok")
+            return
         self.s7.result(T("C'est réglé, mais pas encore mémorisé. Clique « Enregistrer dans la carte » en bas à "
                          "droite : la carte redémarre et fait son tour de calage (lâche le volant)."), "ok")
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 import time
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QPlainTextEdit, QLabel,
+from PySide6.QtWidgets import (QWidget, QHBoxLayout, QLineEdit, QPushButton, QPlainTextEdit, QLabel,
                                QListWidget, QListWidgetItem, QMessageBox)
 
 from .i18n import T

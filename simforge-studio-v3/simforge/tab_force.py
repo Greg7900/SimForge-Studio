@@ -71,7 +71,6 @@ class ForceTab(QWidget):
         self.settings = settings
         self.running = False
         self.playing = None             # kind DirectInput en cours
-        self.haptic_ok = False
         self._diag = None
 
         root = QVBoxLayout(self)
@@ -238,6 +237,11 @@ class ForceTab(QWidget):
         self._play_text()
 
     # ------------------------------------------------------------ état
+    @property
+    def haptic_ok(self):
+        # état réel : le Joy tester ferme le retour de force quand il change de manette (SdlInput partagé)
+        return self.sdl.haptic is not None
+
     def param(self, path):
         r = self.settings.rows.get(path)
         return r.device if (r and r.read_ok) else None
@@ -350,11 +354,9 @@ class ForceTab(QWidget):
     def open_haptic(self):
         err = self.sdl.open_haptic("ODrive-Wheel")
         if err:
-            self.haptic_ok = False
             self.led.set(C["bad"])
             self.h_status.setText(err)
             return
-        self.haptic_ok = True
         sup = self.sdl.supported()
         self.led.set(C["ok"])
         self.h_status.setText(T("Retour de force ouvert"))
@@ -398,11 +400,18 @@ class ForceTab(QWidget):
                 return
             ph, dur = steps[i]
             self._diag["phase"] = ph
+            err = ""
             if ph == 1:
-                self.sdl.play("constant", {"level": -lvl})
+                err = self.sdl.play("constant", {"level": -lvl})
             elif ph == 2:
-                self.sdl.play("constant", {"level": +lvl})
-            elif ph == 3:
+                err = self.sdl.play("constant", {"level": +lvl})
+            if err:
+                self.stop_all()
+                self.diag_lbl.setText(T("Test impossible : l'effet DirectInput n'a pas pu être lancé ({e}).")
+                                      .format(e=err))
+                self.diag_lbl.setStyleSheet(f"color: {C['warn']};")
+                return
+            if ph == 3:
                 self.sdl.stop_all()
                 self._diag_report()
                 return

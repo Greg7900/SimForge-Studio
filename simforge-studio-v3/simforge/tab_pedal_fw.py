@@ -7,12 +7,13 @@ import os
 import sys
 import threading
 
-from PySide6.QtCore import Qt, QObject, Signal
+from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QCheckBox,
                                QPlainTextEdit, QProgressBar, QMessageBox)
 
 from . import i18n
 from .i18n import T
+from .theme import C
 from .widgets import card, hint
 
 try:
@@ -256,8 +257,8 @@ class PedalFirmwareTab(QWidget):
         if ok:
             self.bar.setValue(100)
             self.res.setText(T("Terminé. La pédale redémarre ; elle réapparaît dans Pédales › Réglages."))
-            self.res.setStyleSheet("color: #4cc38a;")
+            self.res.setStyleSheet(f"color: {C['ok']};")
         else:
             self.res.setText(T("Échec : {m}").format(m=msg or T("voir le journal ci-dessous")) + "\n" +
                              T("Essaie la manipulation BOOT/RESET ci-dessous."))
-            self.res.setStyleSheet("color: #e5484d;")
+            self.res.setStyleSheet(f"color: {C['bad']};")

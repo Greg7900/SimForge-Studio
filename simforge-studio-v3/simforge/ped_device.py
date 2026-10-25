@@ -249,22 +249,27 @@ class PedalLink(QThread):
                     n_states, t_rate = 0, now
                 if not self.ok and now - t_open > 2.0:
                     break                                   # pas une pédale
-                if self.ok and not asked and not info.incompatible:
-                    asked = True
-                    dev.write(PP.build_action(tag=info.tag or 0, systemAction_u8=PP.ACT_WAKEUP))
-                    time.sleep(0.02)
-                    dev.write(PP.build_action(tag=info.tag or 0, returnPedalConfig_u8=1))
                 if self.ok and now - info.last_rx > 3.0:
                     mgr.log.emit("warn", T("Pédale {p} : plus de données").format(p=info.port))
                     break
-                while True:
-                    try:
-                        data, what = self.q.get_nowait()
-                    except queue.Empty:
-                        break
-                    dev.write(data)
-                    if what:
-                        mgr.log.emit("info", f"→ {info.name} : {what}")
+                try:
+                    if self.ok and not asked and not info.incompatible:
+                        asked = True
+                        dev.write(PP.build_action(tag=info.tag or 0, systemAction_u8=PP.ACT_WAKEUP))
+                        time.sleep(0.02)
+                        dev.write(PP.build_action(tag=info.tag or 0, returnPedalConfig_u8=1))
+                    while True:
+                        try:
+                            data, what = self.q.get_nowait()
+                        except queue.Empty:
+                            break
+                        dev.write(data)
+                        if what:
+                            mgr.log.emit("info", f"→ {info.name} : {what}")
+                except Exception as e:
+                    # port perdu en cours d'envoi : on le dit (une trame « mémoriser » a pu ne pas partir)
+                    mgr.log.emit("warn", T("Pédale {p} : envoi impossible, port perdu ({e})").format(p=info.port, e=e))
+                    break
         finally:
             dev.close()
             if self.ok:

@@ -21,6 +21,10 @@ Tout le code est dans `simforge-studio-v3/` :
 - Textes d'interface écrits en français dans `T("…")` ; chaque nouveau texte doit avoir sa traduction dans
   `simforge/i18n_en.py` (clé = texte français exact). L'anglais est la langue par défaut.
 - Style existant : commentaires et noms courts en français, lignes ≤ 120 caractères, pas de nouvelle dépendance sans raison.
+- Réutiliser l'existant : `widgets.py` (`grid`, `save_json`, `TabPages`, `StatRow`…), `ow_protocol.to_float`,
+  `tab_monitor.Ring` (courbe réduite sans perdre les pics), `i18n.settings()` pour les préférences.
+- Qt : seulement `PySide6-Essentials` (requirements.txt). Un module Qt « Addons » demanderait le paquet complet
+  (+430 Mo dans .venv).
 - Réglages des pédales : ajouter/déplacer un réglage = une entrée `PField` dans `ped_protocol.PFIELDS` ; garder libellés,
   unités et plages existants sauf demande explicite. Référence : https://github.com/ChrGri/DIY-Sim-Racing-FFB-Pedal
   (firmware `ESP32/`, plugin `SimHubPlugin/`).
@@ -33,7 +37,9 @@ python simforge-studio-v3/simforge_studio.py --demo                 # appli comp
 python tools/capture_demo.py p_settings capture.png [--lang en]     # capture d'une page sans fenêtre
 ```
 Sous Linux sans écran il faut `libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3`.
-Pas de tests automatisés : vérifier par la démo (pédales simulées « Frein » et « Accélérateur ») et regarder la capture.
+Tests automatisés (protocoles, comportements corrigés) : `pip install pytest` puis `python -m pytest tests`.
+Pour l'interface : démo (pédales simulées « Frein » et « Accélérateur ») et capture.
+Lint : `ruff check --select F,E9 --line-length 120 simforge-studio-v3 tools tests`.
 
 ## Git
 - `main` = versions stables taguées (`v3.0.0`, …) ; `dev` = intégration ; une branche par sujet, créée depuis `dev`.

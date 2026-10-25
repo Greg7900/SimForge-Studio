@@ -18,9 +18,8 @@ from . import ped_protocol as PP
 from .ped_autotune import AutoTune
 from .i18n import T
 from .theme import C
-from .widgets import card, hint, repolish, AxisBar, TabPages, StatRow
+from .widgets import card, hint, repolish, AxisBar, TabPages, StatRow, grid, save_json
 
-pg.setConfigOptions(antialias=False, background=C["panel"], foreground=C["dim"])
 
 
 def _pct(v):
@@ -193,7 +192,7 @@ class CurveEditor(QWidget):
         lay.addLayout(top)
         self.plot = Plot(self)
         self.plot.setMinimumHeight(170)
-        self.plot.showGrid(x=True, y=True, alpha=0.15)
+        grid(self.plot)
         self.plot.setLabel("bottom", xlabel, "%")
         self.plot.setLabel("left", ylabel, "%")
         self.plot.setXRange(0, 100, padding=0.02)
@@ -458,7 +457,7 @@ class KinematicsView(QWidget):
             p.drawText(self.rect(), Qt.AlignCenter, T("Pas de configuration lue"))
             return
         c = self.cfg
-        a, b, d = c["lengthPedalA_i16"], c["lengthPedalB_i16"], c["lengthPedalD_i16"]
+        b, d = c["lengthPedalB_i16"], c["lengthPedalD_i16"]
         ch, cv, tr = c["lengthPedalCHorizontal_i16"], c["lengthPedalCVertical_i16"], c["lengthPedalTravel_i16"]
         start, end = c["pedalStartPosition_u8"] / 100, c["pedalEndPosition_u8"] / 100
         live = self.live if self.live is not None else 0.0
@@ -755,7 +754,7 @@ class PedalsTab(QWidget):
         self.diag_plot.setMinimumHeight(170)
         self.diag_plot.setMouseEnabled(x=False, y=False)
         self.diag_plot.setMenuEnabled(False)
-        self.diag_plot.showGrid(x=True, y=True, alpha=0.15)
+        grid(self.diag_plot)
         self.diag_plot.setLabel("left", T("Tension"), "V")
         self.diag_plot.setLabel("bottom", T("Temps"), "s")
         for ax in ("left", "bottom"):
@@ -1071,8 +1070,7 @@ class PedalsTab(QWidget):
         fn, _ = QFileDialog.getSaveFileName(self, T("Exporter"), time.strftime("pedale_%Y-%m-%d_%H-%M.json"),
                                             "JSON (*.json)")
         if fn:
-            with open(fn, "w", encoding="utf-8") as fh:
-                json.dump({"simforge_pedal_config": PP.VERSION, "config": c}, fh, indent=1)
+            save_json(self, fn, {"simforge_pedal_config": PP.VERSION, "config": c}, indent=1)
 
     def import_(self):
         if self.cfg is None:
@@ -1083,10 +1081,15 @@ class PedalsTab(QWidget):
         try:
             with open(fn, encoding="utf-8") as fh:
                 d = json.load(fh)
-            c = d.get("config", d)
+            c = d.get("config", d) if isinstance(d, dict) else None
+            if not isinstance(c, dict):
+                raise ValueError(T("format inattendu"))
             missing = [n for n in PP.CONFIG_NAMES if n not in c]
             if missing:
                 raise ValueError(T("{n} champs manquants").format(n=len(missing)))
+            bad = [n for n in PP.CONFIG_NAMES if not isinstance(c[n], (int, float))]
+            if bad:
+                raise ValueError(T("valeurs non numériques : {l}").format(l=", ".join(bad[:5])))
         except Exception as e:
             QMessageBox.warning(self, T("Importer"), T("Fichier illisible : {e}").format(e=e))
             return

@@ -25,6 +25,14 @@ REPORT_ID = 0x01
 OFFB_CLASSES = {"axis", "fx", "sys", "gpio", "main", "odrv", "effects"}
 
 
+def to_float(s):
+    """Texte de la carte → nombre, ou None s'il est absent ou illisible."""
+    try:
+        return float(s)
+    except (TypeError, ValueError):
+        return None
+
+
 def is_offb(path: str) -> bool:
     return path.split(".", 1)[0] in OFFB_CLASSES
 
@@ -266,9 +274,8 @@ class Field:
                 return 1 if s in ("1", "True", "true") else 0 if s in ("0", "False", "false") else None
             if self.kind in ("int", "enum"):
                 return int(float(s))
-            v = float(s)
-            return v
-        except ValueError:
+            return float(s)
+        except (ValueError, OverflowError):     # OverflowError : « inf » lu pour un champ entier
             return None
 
     def fmt(self, v) -> str:

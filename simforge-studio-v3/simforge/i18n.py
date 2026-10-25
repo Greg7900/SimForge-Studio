@@ -8,7 +8,8 @@ LANG = "en"
 LANGS = {"en": "English", "fr": "Français"}
 
 
-def _settings():
+def settings():
+    """Préférences de l'appli (registre Windows), partagées par toutes les pages."""
     from PySide6.QtCore import QSettings
     return QSettings("SimForge", "SimForge Studio V3")
 
@@ -16,7 +17,7 @@ def _settings():
 def load_lang() -> str:
     global LANG
     try:
-        v = str(_settings().value("lang", "en"))
+        v = str(settings().value("lang", "en"))
         LANG = v if v in LANGS else "en"
     except Exception:
         LANG = "en"
@@ -24,7 +25,7 @@ def load_lang() -> str:
 
 
 def save_lang(lang: str):
-    _settings().setValue("lang", lang)
+    settings().setValue("lang", lang)
 
 
 def T(fr: str) -> str:
