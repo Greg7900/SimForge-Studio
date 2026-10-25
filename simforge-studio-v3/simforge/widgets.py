@@ -7,7 +7,7 @@ from PySide6.QtCore import Qt, Signal, QRectF, QPointF, QObject, QEvent
 from PySide6.QtGui import QPainter, QColor, QPen, QBrush, QFont
 from PySide6.QtWidgets import (QFrame, QLabel, QVBoxLayout, QHBoxLayout, QWidget, QSlider,
                                QSpinBox, QCheckBox, QComboBox, QSizePolicy, QApplication, QAbstractSpinBox,
-                               QAbstractSlider, QScrollBar, QTabBar, QAbstractScrollArea)
+                               QAbstractSlider, QScrollBar, QTabBar, QAbstractScrollArea, QStackedWidget)
 
 from .theme import C
 from .i18n import T
@@ -34,6 +34,44 @@ class WheelGuard(QObject):
 def install_wheel_guard(app):
     app._wheel_guard = WheelGuard(app)
     app.installEventFilter(app._wheel_guard)
+
+
+class TabPages(QWidget):
+    """Barre d'onglets au-dessus d'une pile de pages, sans le mode « document » de QTabWidget qui se dessinait
+    par-dessus les pages sous Windows."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
+        self.bar = QTabBar()
+        self.bar.setDrawBase(False)
+        self.bar.setExpanding(False)
+        self.bar.setFocusPolicy(Qt.NoFocus)
+        lay.addWidget(self.bar)
+        sep = QFrame()
+        sep.setFixedHeight(1)
+        sep.setStyleSheet(f"background: {C['line']};")
+        lay.addWidget(sep)
+        self.stack = QStackedWidget()
+        lay.addWidget(self.stack, 1)
+        self.bar.currentChanged.connect(self.stack.setCurrentIndex)
+
+    def addTab(self, w, title):
+        self.stack.addWidget(w)
+        return self.bar.addTab(title)
+
+    def setCurrentIndex(self, i):
+        self.bar.setCurrentIndex(i)
+
+    def currentIndex(self):
+        return self.bar.currentIndex()
+
+    def setTabVisible(self, i, on):
+        self.bar.setTabVisible(i, on)
+        if not on and self.bar.currentIndex() == i:
+            self.bar.setCurrentIndex(0)
 
 
 def card(title: str = "", parent=None):

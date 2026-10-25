@@ -13,13 +13,13 @@ import time
 
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton, QCheckBox,
-                               QComboBox, QDoubleSpinBox, QSlider, QTabWidget, QScrollArea, QFileDialog,
+                               QComboBox, QDoubleSpinBox, QSlider, QScrollArea, QFileDialog,
                                QMessageBox, QSizePolicy)
 
 from . import ow_protocol as P
 from .i18n import T
 from .theme import C
-from .widgets import card, hint, repolish, StatRow
+from .widgets import card, hint, repolish, StatRow, TabPages
 
 
 def _num(s):
@@ -385,8 +385,7 @@ class SettingsTab(QWidget):
         top.addWidget(self.b_apply)
         root.addLayout(top)
 
-        self.tabs = QTabWidget()
-        self.tabs.setDocumentMode(True)
+        self.tabs = TabPages()          # onglets sans le mode « document » de Qt (dessin glitché sous Windows)
         for title, groups in PAGES:
             self.tabs.addTab(self._page(groups), title)
         self.gpio_index = self.tabs.addTab(self._gpio_page(), T("Entrées GPIO"))

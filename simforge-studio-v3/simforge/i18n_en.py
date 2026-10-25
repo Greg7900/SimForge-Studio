@@ -1891,4 +1891,8 @@ EN = {
         'Requested force versus travel. Drag the orange points to shape the curve; the blue dot shows the pedal live.',
     'Valeur envoyée au jeu selon la force (ou la course). Linéaire par défaut. Fais glisser les points pour la régler.':
         'Value sent to the game versus force (or travel). Linear by default. Drag the points to shape it.',
+    "Le firmware ne change le rôle d'une pédale déjà assignée qu'en l'enregistrant. Enregistrer tous ces réglages dans la pédale maintenant ?":
+        'The firmware only changes the role of an already assigned pedal when the settings are saved. Save all these settings to the pedal now?',
+    "Choisit l'axe de manette et les effets reçus. Une pédale déjà assignée ne change de rôle qu'avec « Enregistrer dans la pédale ».":
+        'Selects the controller axis and the effects received. An already assigned pedal only changes role with “Save to pedal”.',
 }

@@ -260,7 +260,8 @@ TABS_FX = [G_ABS, G_RPM, G_BP, G_WS, G_GF, G_ROAD]
 PFIELDS = [
     PField("pedalType_u8", T("Rôle de la pédale"), "enum",
            items=[(0, T("Embrayage")), (1, T("Frein")), (2, T("Accélérateur"))], group=G_GEN,
-           tip=T("Choisit l'axe de manette et les effets reçus.")),
+           tip=T("Choisit l'axe de manette et les effets reçus. Une pédale déjà assignée ne change de rôle "
+                 "qu'avec « Enregistrer dans la pédale ».")),
     PField("pedalStartPosition_u8", T("Début de course"), lo=0, hi=99, unit="%", group=G_CURVE,
            tip=T("Position de repos de la pédale, en % de la course mécanique.")),
     PField("pedalEndPosition_u8", T("Fin de course"), lo=1, hi=100, unit="%", group=G_CURVE),

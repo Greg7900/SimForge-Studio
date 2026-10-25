@@ -12,12 +12,12 @@ from PySide6.QtCore import Qt, QTimer, Signal, QPointF, QRectF, QEvent
 from PySide6.QtGui import QPainter, QColor, QPen, QFont
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton, QComboBox,
                                QCheckBox, QDoubleSpinBox, QSpinBox, QScrollArea, QMessageBox, QFileDialog,
-                               QPlainTextEdit, QTabBar, QStackedWidget, QFrame)
+                               QPlainTextEdit, QTabBar)
 
 from . import ped_protocol as PP
 from .i18n import T
 from .theme import C
-from .widgets import card, hint, repolish, AxisBar
+from .widgets import card, hint, repolish, AxisBar, TabPages
 
 pg.setConfigOptions(antialias=False, background=C["panel"], foreground=C["dim"])
 
@@ -72,39 +72,6 @@ class Plot(pg.PlotWidget):
 
     def wheelEvent(self, ev):
         ev.ignore()
-
-
-class TabPages(QWidget):
-    """Barre d'onglets au-dessus d'une pile de pages, sans le mode « document » de QTabWidget qui se dessinait
-    par-dessus les pages sous Windows."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        lay = QVBoxLayout(self)
-        lay.setContentsMargins(0, 0, 0, 0)
-        lay.setSpacing(0)
-        self.bar = QTabBar()
-        self.bar.setDrawBase(False)
-        self.bar.setExpanding(False)
-        self.bar.setFocusPolicy(Qt.NoFocus)
-        lay.addWidget(self.bar)
-        sep = QFrame()
-        sep.setFixedHeight(1)
-        sep.setStyleSheet(f"background: {C['line']};")
-        lay.addWidget(sep)
-        self.stack = QStackedWidget()
-        lay.addWidget(self.stack, 1)
-        self.bar.currentChanged.connect(self.stack.setCurrentIndex)
-
-    def addTab(self, w, title):
-        self.stack.addWidget(w)
-        return self.bar.addTab(title)
-
-    def setCurrentIndex(self, i):
-        self.bar.setCurrentIndex(i)
-
-    def currentIndex(self):
-        return self.bar.currentIndex()
 
 
 class PRow(QWidget):
@@ -399,7 +366,8 @@ class KinematicsView(QWidget):
         self.editor = QSpinBox(self)
         self.editor.setSuffix(" mm")
         self.editor.setAlignment(Qt.AlignCenter)
-        self.editor.setButtonSymbols(QSpinBox.NoButtons)
+        # NoButtons + la feuille de style masquait le chiffre : flèches gardées mais réduites à 0 px (comme la courbe)
+        self.editor.setStyleSheet("QSpinBox::up-button, QSpinBox::down-button { width: 0px; border: none; }")
         self.editor.hide()
         self.editor.editingFinished.connect(self._commit)
         for w in (self.editor, self.editor.lineEdit()):      # Échap peut arriver sur l'un ou l'autre
@@ -439,7 +407,8 @@ class KinematicsView(QWidget):
         self.editor.selectAll()
 
     def _place(self, r):
-        self.editor.setGeometry(int(r.x()) - 4, int(r.center().y()) - 14, max(96, int(r.width()) + 16), 28)
+        h = max(30, self.editor.sizeHint().height())
+        self.editor.setGeometry(int(r.x()) - 4, int(r.center().y() - h / 2), max(110, int(r.width()) + 24), h)
 
     def _commit(self):
         name, self._editing = self._editing, None
@@ -934,9 +903,17 @@ class PedalsTab(QWidget):
         if probs:
             QMessageBox.warning(self, T("Pédale"), "\n".join(probs))
             return
-        if store and QMessageBox.question(self, T("Enregistrer dans la pédale"),
-                                          T("Mémoriser ces réglages dans la pédale ? Ils remplaceront ceux enregistrés.")) \
-                != QMessageBox.Yes:
+        role = self.rows["pedalType_u8"]
+        if not store and role.modified() and role.device in self.ROLES:
+            # le firmware garde le rôle enregistré d'une pédale déjà assignée : seul « Enregistrer » le change
+            if QMessageBox.question(self, T("Rôle de la pédale"),
+                                    T("Le firmware ne change le rôle d'une pédale déjà assignée qu'en l'enregistrant. "
+                                      "Enregistrer tous ces réglages dans la pédale maintenant ?")) != QMessageBox.Yes:
+                return
+            store = True
+        elif store and QMessageBox.question(self, T("Enregistrer dans la pédale"),
+                                            T("Mémoriser ces réglages dans la pédale ? Ils remplaceront ceux "
+                                              "enregistrés.")) != QMessageBox.Yes:
             return
         err = self.m.send_config(self.port, c, store)
         if err:
