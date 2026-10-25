@@ -186,7 +186,7 @@ DBG_EXT_DECIMATED = 4
 DBG_CLEAR_ALARMS = 16
 
 # firmware V6 « un câble » compilé par SimForge (firmware/pedal_pcb_v6_un_cable) : 3e nombre de la version + 100
-# (26.43.07 → 26.43.107) ; il fait aussi biper la pédale par USB (action 11)
+# (26.43.07 → 26.43.107), pour l'afficher
 SIMFORGE_FW_PATCH = 100
 
 

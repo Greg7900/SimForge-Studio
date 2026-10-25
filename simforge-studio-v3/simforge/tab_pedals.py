@@ -598,11 +598,13 @@ class PedalsTab(QWidget):
         c, l = card(T("Actions"))
         g = QGridLayout()
         g.setSpacing(6)
-        # firmware de ChrGri : bip (action 11) reçu par ESP-NOW seulement ; version SimForge : aussi par USB
-        self.b_beep = QPushButton(T("Identifier (bip)"))
-        self.b_beep.setEnabled(False)
-        self.b_beep.clicked.connect(lambda: self.m.action(self.port, T("bip d'identification"),
-                                                         systemAction_u8=PP.ACT_BEEP))
+        # la carte V6 n'a ni buzzer ni LED pilotée (USING_BUZZER / USING_LED absents de son firmware) : le bip
+        # d'identification (action 11) n'y fait rien ; une courte vibration ABS, elle, marche par le port série
+        self.b_ident = QPushButton(T("Identifier"))
+        self.b_ident.setToolTip(T("Fait vibrer la pédale une demi-seconde pour la reconnaître. Si rien ne se passe, "
+                                  "pose le pied dessus : les effets ne jouent qu'au-dessus de « Force mini pour les "
+                                  "effets »."))
+        self.b_ident.clicked.connect(self.identify)
         self.b_read = QPushButton(T("Relire"))
         self.b_read.clicked.connect(self._reread)
         self.b_exp = QPushButton(T("Exporter…"))
@@ -630,7 +632,7 @@ class PedalsTab(QWidget):
         self.b_info.setToolTip(T("Demande à la pédale d'écrire ses informations dans les messages."))
         self.b_info.clicked.connect(lambda: self.m.action(self.port, T("infos firmware"),
                                                          systemAction_u8=PP.ACT_PRINT_INFO))
-        for i, b in enumerate((self.b_beep, self.b_read, self.b_exp, self.b_imp, self.b_wake, self.b_restart,
+        for i, b in enumerate((self.b_ident, self.b_read, self.b_exp, self.b_imp, self.b_wake, self.b_restart,
                                self.b_alarm, self.b_info)):
             g.addWidget(b, i // 2, i % 2)
         l.addLayout(g)
@@ -955,17 +957,12 @@ class PedalsTab(QWidget):
         return "\n".join(parts)
 
     def _status(self):
-        for b in (self.b_wake, self.b_restart, self.b_info):
+        for b in (self.b_ident, self.b_wake, self.b_restart, self.b_info):
             b.setEnabled(self.port is not None)
         # une pédale qui change de rôle (Rôle de la pédale enregistré) doit changer d'onglet
         if self._roles() != self._roles_shown:
             self._refresh_list()
         info = self.m.info(self.port) if self.port else None
-        beep = bool(info and PP.simforge_fw(info.fw_v))
-        self.b_beep.setEnabled(beep)
-        self.b_beep.setToolTip(T("Fait biper la pédale pour la reconnaître.") if beep else T(
-            "Indisponible par câble USB avec le firmware de ChrGri : la pédale ne bipe que sur ordre du récepteur "
-            "sans fil (ESP-NOW). Le firmware « V6 un câble » de la page Firmware le fait aussi par USB."))
         if info:
             self.status.setText(self._status_text(info))
             if info.incompatible:
@@ -1087,6 +1084,13 @@ class PedalsTab(QWidget):
         err = self.m.send_config(self.port, self.cfg, False, clear_alarms=True)   # configuration de la pédale
         if err:
             QMessageBox.warning(self, T("Pédale"), T("Réglages refusés (la pédale les ignorerait) : {e}").format(e=err))
+
+    def identify(self):
+        if not self.port:
+            return
+        port = self.port
+        self.m.action(port, T("vibration d'identification"), triggerAbs_u8=1)
+        QTimer.singleShot(500, lambda: self.m.action(port, "", triggerAbs_u8=0))
 
     def test_abs(self):
         if not self.port:

@@ -12,7 +12,6 @@ pedal_pcb_v6/   env ControlBoard_V6 (PCB_VERSION 13) - firmware 26.43.07, config
 pedal_pcb_v6_un_cable/  version SimForge / SimForge build : env ControlBoard_V6_OneCable (simforge_changes.diff)
                 - un seul câble : réglages + manette sur l'USB natif (USE_CDC_INSTEAD_OF_UART, comme les cartes V7/V8)
                   / one cable: settings + joystick on native USB (USE_CDC_INSTEAD_OF_UART, as on V7/V8 boards)
-                - bip d'identification aussi par USB / identify beep also over USB
                 - manette nommée comme la pédale (FFB_Pedal_Brake…), pas « TinyUSB HID »
                   / joystick named after the pedal (FFB_Pedal_Brake…), not "TinyUSB HID"
                 - version : 3e nombre + 100 (26.43.107) / version: patch + 100

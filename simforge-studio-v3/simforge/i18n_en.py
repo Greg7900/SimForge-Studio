@@ -1782,12 +1782,14 @@ EN = {
         'native USB port with the "one cable" firmware, and close SimHub.',
     'états/s':
         'states/s',
-    'Fait biper la pédale pour la reconnaître.':
-        'Makes the pedal beep so you can tell which one it is.',
-    "Indisponible par câble USB avec le firmware de ChrGri : la pédale ne bipe que sur ordre du récepteur sans fil "
-    "(ESP-NOW). Le firmware « V6 un câble » de la page Firmware le fait aussi par USB.":
-        "Not available over USB with ChrGri's firmware: the pedal only beeps when the wireless receiver (ESP-NOW) "
-        "asks it to. The \"V6 one cable\" firmware on the Firmware page also does it over USB.",
+    'Identifier':
+        'Identify',
+    "Fait vibrer la pédale une demi-seconde pour la reconnaître. Si rien ne se passe, pose le pied dessus : les "
+    "effets ne jouent qu'au-dessus de « Force mini pour les effets ».":
+        'Makes the pedal vibrate for half a second so you can tell which one it is. If nothing happens, rest your '
+        'foot on it: effects only play above "Minimum force for effects".',
+    "vibration d'identification":
+        'identify vibration',
     "bip d'identification":
         'identify beep',
     "Tester l'ABS (1 s)":

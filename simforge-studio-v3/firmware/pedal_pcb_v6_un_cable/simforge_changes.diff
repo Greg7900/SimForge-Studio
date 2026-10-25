@@ -15,11 +15,11 @@ index e5e40e0..09e07ea 100644
  // V7 version of dev PCB for ESP32-S3-Zero
 diff --git a/ESP32/platformio.envs/env.ControlBoard_V6_OneCable.ini b/ESP32/platformio.envs/env.ControlBoard_V6_OneCable.ini
 new file mode 100644
-index 0000000..705b611
+index 0000000..8f30569
 --- /dev/null
 +++ b/ESP32/platformio.envs/env.ControlBoard_V6_OneCable.ini
 @@ -0,0 +1,12 @@
-+; SimForge : PCB V6, un seul câble (réglages + manette sur l'USB natif de l'ESP32-S3), bip par USB
++; SimForge : PCB V6, un seul câble (réglages + manette sur l'USB natif de l'ESP32-S3)
 +[env:ControlBoard_V6_OneCable]
 +extends = env:ControlBoard_V6
 +build_flags =
@@ -56,7 +56,7 @@ index 0000000..f73e07d
 +open(f, "w", encoding="utf-8").write(code.replace(old, "tinyusb_add_string_descriptor(USB.productName())"))
 +print("SimForge: HID interface string = product name")
 diff --git a/ESP32/src/Main.cpp b/ESP32/src/Main.cpp
-index f27a54b..1133517 100644
+index f27a54b..d3dcd37 100644
 --- a/ESP32/src/Main.cpp
 +++ b/ESP32/src/Main.cpp
 @@ -1151,6 +1151,9 @@ void setup() {
@@ -69,17 +69,3 @@ index f27a54b..1133517 100644
    ActiveSerial->println(" ");
    ActiveSerial->println(" ");
    ActiveSerial->println(" ");
-@@ -3884,6 +3887,13 @@ void IRAM_ATTR_FLAG serialCommunicationTaskRx(void *pvParameters) {
-               ActiveSerial->println(logString);
-             }
- 
-+#ifdef SIMFORGE_ONE_CABLE
-+            // SimForge: identification beep also over USB (ChrGri: ESP-NOW only)
-+            if (received_action.payloadPedalAction_st.systemAction_u8 ==
-+                (uint8_t)PedalSystemAction::ASSIGNMENT_CHECK_BEEP) {
-+              buzzerBeepAction_b = true;
-+            }
-+#endif
-             if (received_action.payloadPedalAction_st.systemAction_u8 ==
-                 (uint8_t)PedalSystemAction::WAKEUP_PEDAL) {
-               if (g_pedalOperationalState_u8 ==
