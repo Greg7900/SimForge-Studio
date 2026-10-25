@@ -350,8 +350,8 @@ PFIELDS = [
            tip=T("Valeur marquée sur la résistance de freinage (10 Ω au réglage d'usine, 0 = 5 Ω). Le firmware en "
                  "déduit la puissance qu'elle absorbe et la vitesse de remontée permise : trop basse, la pédale "
                  "remonte trop vite et la tension du servo grimpe.")),
-    PField("servoIdleTimeout_u8", T("Mise en veille du servo"), group=G_SERVO,
-           tip=T("Valeur brute du firmware ; 0 = jamais.")),
+    PField("servoIdleTimeout_u8", T("Mise en veille du servo"), unit="min", group=G_SERVO,
+           tip=T("Coupe le servo après ce temps sans appui (LED rouge) ; un appui franc le réveille. 0 = jamais.")),
     PField("wakeOnPluginOnly_u8", T("Au démarrage"), "enum",
            items=[(0, T("la pédale démarre seule")), (1, T("attend le logiciel (veille)"))], group=G_GEN),
     # le firmware lit « …InPercent » comme masse en kg et taux d'amortissement ×100 (StepperMovementStrategy.h),

@@ -1622,6 +1622,8 @@ EN = {
         "Value marked on the brake resistor (10 Ω factory setting, 0 = 5 Ω). The firmware derives from it the power "
         "the resistor absorbs and the allowed return speed: too low, the pedal comes back too fast and the servo "
         "voltage climbs.",
+    'Coupe le servo après ce temps sans appui (LED rouge) ; un appui franc le réveille. 0 = jamais.':
+        'Switches the servo off after this time without a press (red LED); a firm press wakes it up. 0 = never.',
     'Valeur brute du firmware ; 0 = jamais.':
         'Raw firmware value; 0 = never.',
     'force maxi entre 1 et 500 kg':
