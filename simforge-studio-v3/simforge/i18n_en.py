@@ -1895,4 +1895,6 @@ EN = {
         'The firmware only changes the role of an already assigned pedal when the settings are saved. Save all these settings to the pedal now?',
     "Choisit l'axe de manette et les effets reçus. Une pédale déjà assignée ne change de rôle qu'avec « Enregistrer dans la pédale ».":
         'Selects the controller axis and the effects received. An already assigned pedal only changes role with “Save to pedal”.',
+    'le 2e point de la courbe de force est à 1 % : le firmware passerait la pédale en mode palonnier (avion). Mets-le à 0 ou 2 % ou plus.':
+        'the 2nd point of the force curve is at 1 %: the firmware would switch the pedal to rudder (flight) mode. Set it to 0 or to 2 % or more.',
 }

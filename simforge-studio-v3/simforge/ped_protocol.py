@@ -202,6 +202,10 @@ def plausible(c: dict) -> list[str]:
     if c["pedalEndPosition_u8"] - c["pedalStartPosition_u8"] < 5:
         e.append(T("la fin doit dépasser le début d'au moins 5 %"))
     rudder = c["relativeForce01_u8"] == 1 or c["preloadForce_fl32"] < 0
+    if c["relativeForce01_u8"] == 1 and c["preloadForce_fl32"] >= 0:
+        # le firmware lit « 2e point de la courbe = 1 % » comme une pédale de palonnier (avion) : jamais voulu ici
+        e.append(T("le 2e point de la courbe de force est à 1 % : le firmware passerait la pédale en mode palonnier "
+                   "(avion). Mets-le à 0 ou 2 % ou plus."))
     if not rudder:
         if not 1 <= c["maxForce_fl32"] <= 500:
             e.append(T("force maxi entre 1 et 500 kg"))
