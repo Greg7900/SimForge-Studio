@@ -173,6 +173,10 @@ def build_action(tag=0, **kw) -> bytes:
     return frame(T_ACTION, _pack(ACTION_FIELDS, ACTION_S, d), 0, tag)
 
 
+# debugFlags0_u8 (firmware Main.cpp) : état détaillé envoyé en continu, une trame sur 4
+DBG_EXT_STATE = 64
+DBG_EXT_DECIMATED = 4
+
 # actions système (PedalEnum.h : PedalSystemAction)
 ACT_RESTART = 2
 ACT_DOWNLOAD_MODE = 5
@@ -258,7 +262,8 @@ G_WS = T("Patinage des roues")
 G_GF = T("Effet G")
 G_ROAD = T("Chocs de la route")
 TABS_CURVE = [G_CURVE, G_KIN, G_JOY]
-TABS_GENERAL = [G_GEN, G_FILT, G_GLOB, G_SERVO, G_DYN]
+G_DIAG = T("Diagnostic servo")
+TABS_GENERAL = [G_GEN, G_FILT, G_GLOB, G_SERVO, G_DYN, G_DIAG]
 TABS_FX = [G_ABS, G_RPM, G_BP, G_WS, G_GF, G_ROAD]
 
 PFIELDS = [

@@ -1937,4 +1937,34 @@ EN = {
         'pedal restart',
     "Sort la pédale de l'attente du logiciel au démarrage (LED bleue, réglage « Au démarrage : attend le logiciel »). Après la « Mise en veille du servo » (LED rouge), seul un appui franc sur la pédale la réveille.":
         'Takes the pedal out of waiting for the software at power-up (blue LED, “At power-up: waits for the software”). After the “Servo sleep” time (red LED), only a firm press on the pedal wakes it up.',
+    'Diagnostic servo':
+        'Servo diagnostics',
+    "État détaillé envoyé par la pédale : sert à comprendre un servo qui se bloque. Si la tension monte à chaque relâcher jusqu'au blocage, l'énergie de freinage n'est pas évacuée (onglet Général, « Énergie de freinage du servo »).":
+        'Detailed state sent by the pedal: helps understand a servo that locks up. If the voltage rises at each release until it locks, the braking energy is not dissipated (General tab, “Servo braking energy”).',
+    "Recevoir l'état détaillé du servo":
+        'Receive the detailed servo state',
+    'Applique (sans mémoriser) le drapeau de débogage 64 + 4 de la pédale. Les modifications en attente ne sont pas envoyées.':
+        'Applies (without storing) debug flag 64 + 4 on the pedal. Pending changes are not sent.',
+    'Tension du servo':
+        'Servo voltage',
+    'Tension la plus haute':
+        'Highest voltage',
+    'Courant du servo':
+        'Servo current',
+    'Écart de position (consigne − réelle)':
+        'Position error (target − actual)',
+    'pas':
+        'steps',
+    'Vitesse du servo':
+        'Servo speed',
+    'tr/min':
+        'rpm',
+    'Remettre le maxi à zéro':
+        'Reset the maximum',
+    'Temps':
+        'Time',
+    'active':
+        'on',
+    'inactive':
+        'off',
 }

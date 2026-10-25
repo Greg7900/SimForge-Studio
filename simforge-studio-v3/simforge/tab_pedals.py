@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, Q
 from . import ped_protocol as PP
 from .i18n import T
 from .theme import C
-from .widgets import card, hint, repolish, AxisBar, TabPages
+from .widgets import card, hint, repolish, AxisBar, TabPages, StatRow
 
 pg.setConfigOptions(antialias=False, background=C["panel"], foreground=C["dim"])
 
@@ -541,6 +541,7 @@ class PedalsTab(QWidget):
         self.port = None
         self.cfg = None                 # dernière config lue (brute, complète)
         self.rows: dict[str, PRow] = {}
+        self._discard = False
         self.hist = deque(maxlen=1500)
 
         root = QVBoxLayout(self)
@@ -600,7 +601,7 @@ class PedalsTab(QWidget):
         self.b_beep.clicked.connect(lambda: self.m.action(self.port, T("bip d'identification"),
                                                          systemAction_u8=PP.ACT_BEEP))
         self.b_read = QPushButton(T("Relire"))
-        self.b_read.clicked.connect(lambda: self.m.request_config(self.port))
+        self.b_read.clicked.connect(self._reread)
         self.b_exp = QPushButton(T("Exporter…"))
         self.b_exp.clicked.connect(self.export)
         self.b_imp = QPushButton(T("Importer…"))
@@ -682,7 +683,8 @@ class PedalsTab(QWidget):
                                          "Fais glisser les points pour la régler.")))
         pages[PP.G_JOY].addWidget(self.joy, 1)
 
-        self._tab_group(il, PP.TABS_GENERAL)
+        pages = self._tab_group(il, PP.TABS_GENERAL)
+        self._build_diag(pages[PP.G_DIAG])
 
         pages = self._tab_group(il, PP.TABS_FX, T("Effets"))
         hb = QHBoxLayout()
@@ -717,6 +719,88 @@ class PedalsTab(QWidget):
         t = QTimer(self)
         t.timeout.connect(self._status)
         t.start(500)
+
+    # ------------------------------------------------------------ diagnostic du servo
+    def _build_diag(self, pl):
+        pl.addWidget(hint(T(
+            "État détaillé envoyé par la pédale : sert à comprendre un servo qui se bloque. Si la tension monte à "
+            "chaque relâcher jusqu'au blocage, l'énergie de freinage n'est pas évacuée (onglet Général, « Énergie "
+            "de freinage du servo »).")))
+        self.diag_on = QCheckBox(T("Recevoir l'état détaillé du servo"))
+        self.diag_on.setToolTip(T("Applique (sans mémoriser) le drapeau de débogage 64 + 4 de la pédale. Les "
+                                  "modifications en attente ne sont pas envoyées."))
+        self.diag_on.toggled.connect(self._diag_toggle)
+        pl.addWidget(self.diag_on)
+        g = QGridLayout()
+        g.setHorizontalSpacing(16)
+        self.diag = {}
+        items = (("v", T("Tension du servo"), "V"), ("vmax", T("Tension la plus haute"), "V"),
+                 ("i", T("Courant du servo"), "%"), ("err", T("Écart de position (consigne − réelle)"), T("pas")),
+                 ("rpm", T("Vitesse du servo"), T("tr/min")), ("br", T("Résistance de freinage"), ""))
+        for k, (key, lab, unit) in enumerate(items):
+            r = StatRow(lab, unit)
+            g.addWidget(r, k // 2, k % 2)
+            self.diag[key] = r
+        pl.addLayout(g)
+        hb = QHBoxLayout()
+        b = QPushButton(T("Remettre le maxi à zéro"))
+        b.clicked.connect(self._diag_reset)
+        hb.addWidget(b)
+        hb.addStretch()
+        pl.addLayout(hb)
+        self.diag_plot = pg.PlotWidget()
+        self.diag_plot.setMinimumHeight(170)
+        self.diag_plot.setMouseEnabled(x=False, y=False)
+        self.diag_plot.setMenuEnabled(False)
+        self.diag_plot.showGrid(x=True, y=True, alpha=0.15)
+        self.diag_plot.setLabel("left", T("Tension"), "V")
+        self.diag_plot.setLabel("bottom", T("Temps"), "s")
+        for ax in ("left", "bottom"):
+            self.diag_plot.getAxis(ax).enableAutoSIPrefix(False)
+        self.diag_curve = self.diag_plot.plot(pen=pg.mkPen(C["accent"], width=2))
+        pl.addWidget(self.diag_plot)
+        self.diag_hist = deque(maxlen=300)          # 15 s à 20 Hz
+        self.diag_t0 = time.monotonic()
+        t = QTimer(self)
+        t.timeout.connect(self._diag_update)
+        t.start(50)
+
+    def _diag_toggle(self, on):
+        if not self.port or self.cfg is None:
+            return
+        c = dict(self.cfg)                          # configuration de la pédale, sans les modifications en attente
+        bits = PP.DBG_EXT_STATE | PP.DBG_EXT_DECIMATED
+        c["debugFlags0_u8"] = (c["debugFlags0_u8"] | bits) if on else (c["debugFlags0_u8"] & ~bits & 0xFF)
+        err = self.m.send_config(self.port, c, False)
+        if err:
+            QMessageBox.warning(self, T("Pédale"), T("Réglages refusés (la pédale les ignorerait) : {e}").format(e=err))
+
+    def _diag_reset(self):
+        info = self.m.info(self.port) if self.port else None
+        if info:
+            info.ext_vmax = 0.0
+        self.diag_hist.clear()
+
+    def _diag_update(self):
+        if not self.diag_plot.isVisible():
+            return
+        info = self.m.info(self.port) if self.port else None
+        ex = info.ext if info else None
+        if not ex or not self.diag_on.isChecked():
+            for r in self.diag.values():
+                r.set("—")
+            return
+        v = ex["servoVoltage0p1V_i16"] / 10
+        self.diag["v"].set(f"{v:.1f}")
+        self.diag["vmax"].set(f"{info.ext_vmax:.1f}", C["warn"] if info.ext_vmax > v + 3 else None)
+        self.diag["i"].set(f"{ex['servoCurrentPercent_i16']}")
+        self.diag["err"].set(f"{ex['servoPositionError_i16']}")
+        self.diag["rpm"].set(f"{ex['servoVelocityRpm_i16']}")
+        self.diag["br"].set(T("active") if ex["brakeResistorState_b"] else T("inactive"),
+                            C["accent"] if ex["brakeResistorState_b"] else None)
+        self.diag_hist.append((time.monotonic() - self.diag_t0, v))
+        xs = [a for a, _ in self.diag_hist]
+        self.diag_curve.setData([x - xs[-1] for x in xs], [b for _, b in self.diag_hist])
 
     def _tab_group(self, parent_lay, groups, title=""):
         """Carte contenant un onglet par groupe de réglages ; renvoie {groupe: layout de l'onglet}."""
@@ -803,7 +887,8 @@ class PedalsTab(QWidget):
             self.m.request_config(port)
 
     def _enable(self, on):
-        for w in (self.b_apply, self.b_save, self.b_read, self.b_beep, self.b_exp, self.b_imp, self.b_abs):
+        for w in (self.b_apply, self.b_save, self.b_read, self.b_beep, self.b_exp, self.b_imp, self.b_abs,
+                  self.diag_on):
             w.setEnabled(on)
         for r in self.rows.values():
             r.setEnabled(on)
@@ -815,11 +900,28 @@ class PedalsTab(QWidget):
         info = self.m.info(port)
         if port != self.port:
             return
+        # relecture automatique (après un envoi, le diagnostic…) : les modifications pas encore envoyées restent ;
+        # « Relire » et le changement de pédale repartent de la pédale
+        keep = self.cfg is not None and not self._discard
+        self._discard = False
         self.cfg = dict(cfg)
         for n, r in self.rows.items():
+            pending = r.value() if keep and r.modified() else None
             r.set_device(cfg[n])
-        self.curve.set_cfg(cfg)
-        self.joy.set_cfg(cfg)
+            if pending is not None:
+                r.set(pending)
+        for ed in (self.curve, self.joy):
+            pending = ed.values() if keep and ed.modified() else None
+            ed.set_cfg(cfg)
+            if pending is not None:
+                dev = ed.device
+                tmp = dict(cfg)
+                tmp.update(pending)
+                ed.set_cfg(tmp)
+                ed.device = dev
+        self.diag_on.blockSignals(True)
+        self.diag_on.setChecked(bool(cfg["debugFlags0_u8"] & PP.DBG_EXT_STATE))
+        self.diag_on.blockSignals(False)
         self._enable(True)
         self._dirty()
         self.status.setText(self._status_text(info))
@@ -942,6 +1044,10 @@ class PedalsTab(QWidget):
         err = self.m.send_config(self.port, c, store)
         if err:
             QMessageBox.warning(self, T("Pédale"), T("Réglages refusés (la pédale les ignorerait) : {e}").format(e=err))
+
+    def _reread(self):
+        self._discard = True                # « Relire » abandonne les modifications pas encore envoyées
+        self.m.request_config(self.port)
 
     def restart(self):
         if self.port and QMessageBox.question(self, T("Redémarrer"), T("Redémarrer la pédale ? Les réglages non "

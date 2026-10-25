@@ -39,6 +39,8 @@ class PedalInfo:
         self.fw = None
         self.state = None
         self.config = None
+        self.ext = None             # dernier état détaillé (debugFlags0 bit 64), pour le diagnostic du servo
+        self.ext_vmax = 0.0         # tension du servo la plus haute vue depuis la dernière remise à zéro (V)
         self.rate = 0.0
         self.incompatible = False
         self.last_rx = 0.0
@@ -107,6 +109,15 @@ class FakePedalPort:
                       joystickOutput_u16=int(min(1.0, pos ** 1.6) * 65535 * self.cfg["maxGameOutput_u8"] / 100),
                       pedalFirmwareVersion_au8=[26, 43, 7], servoStatus_u8=1)
             self.out += PP.frame(PP.T_STATE, PP._pack(PP.STATE_BASIC_FIELDS, PP.STATE_S, st), tag=self.tag)
+            if self.cfg["debugFlags0_u8"] & 64:
+                vel = (pos - getattr(self, "_pos", pos)) / 0.01
+                self._pos = pos
+                self._v = max(36.0, getattr(self, "_v", 36.0) * 0.995 + 0.18 * max(0.0, -vel))
+                ex = {n: (0 if c == 1 else [0] * c) for n, _t, c in PP.STATE_EXT_FIELDS}
+                ex.update(servoVoltage0p1V_i16=int(self._v * 10), servoCurrentPercent_i16=int(pos * 60),
+                          servoPositionError_i16=int(vel * 3), servoVelocityRpm_i16=int(vel * 300),
+                          brakeResistorState_b=1 if self._v > 40 else 0)
+                self.out += PP.frame(PP.T_STATE_EXT, PP._pack(PP.STATE_EXT_FIELDS, PP.STATE_EXT_S, ex), tag=self.tag)
         b = bytes(self.out)
         self.out.clear()
         return b
@@ -203,6 +214,9 @@ class PedalLink(QThread):
                             if not self.ok:
                                 self.ok = True
                                 mgr._probe_done(self, True)
+                        elif fr.ptype == PP.T_STATE_EXT and fr.data:
+                            info.ext = fr.data
+                            info.ext_vmax = max(info.ext_vmax, fr.data["servoVoltage0p1V_i16"] / 10)
                         elif fr.ptype == PP.T_CONFIG:
                             info.config = fr.data
                             mgr.config_read.emit(info.port, dict(fr.data))
