@@ -2033,4 +2033,6 @@ EN = {
         "The servo can go into alarm (overvoltage…) and lock the pedal without the board noticing: green LED, no "
         "error. This button writes the alarm history to the messages, then clears the alarms, which restarts the "
         "servo without a reboot. The pedal freezes for 1 s; pending changes are not sent.",
+    "le servo n'a pas pu enregistrer ses paramètres : coupe puis rallume son alimentation.":
+        'the servo could not save its parameters: switch its power off and on again.',
 }

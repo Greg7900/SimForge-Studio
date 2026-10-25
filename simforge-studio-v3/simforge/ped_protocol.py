@@ -204,6 +204,7 @@ SERVO_MSG_HINTS = (
     ("Undervoltage", T("sous-tension du servo : alimentation trop faible ou coupée un instant.")),
     ("Overcurrent", T("surintensité dans le servo : blocage mécanique ou câblage moteur.")),
     ("Encoder", T("codeur du servo : connecteur ou servo défectueux.")),
+    ("Parameter saving", T("le servo n'a pas pu enregistrer ses paramètres : coupe puis rallume son alimentation.")),
     ("Servo communication lost", T("la carte ne parle plus au servo : câble entre la carte et le servo, ou servo "
                                    "hors tension.")),
     ("overcurrent protection", T("courant trop fort pendant 15 s : moteur coupé jusqu'au redémarrage de la pédale.")),
