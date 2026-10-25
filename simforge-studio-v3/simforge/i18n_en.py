@@ -1952,8 +1952,8 @@ EN = {
         'Step 1: load cell noise',
     'Pose le pied sur la pédale SANS appuyer, et ne bouge plus.':
         'Rest your foot on the pedal WITHOUT pressing, and keep still.',
-    'Vitesse du filtre {s}, amortissement {d} %':
-        'Filter speed {s}, damping {d} %',
+    'Vitesse du filtre {s}, amortissement {d:.2f}':
+        'Filter speed {s}, damping {d:.2f}',
     'Attends… puis appuie et relâche doucement, plusieurs fois, comme quand ça vibrait.':
         'Wait… then press and release slowly, several times, like when it vibrated.',
     'Pédale déconnectée : auto-test arrêté.':
@@ -1968,16 +1968,16 @@ EN = {
         'Pedal moved too little ({t:.0f} % of travel): repeating this step.',
     'Pédale toujours trop peu bougée : palier compté tel quel.':
         'Pedal still moved too little: step counted as is.',
-    'Vitesse {s}, amortissement {d} % : {o:.1f} % du temps en oscillation → {r}':
-        'Speed {s}, damping {d} %: {o:.1f} % of the time oscillating → {r}',
+    'Vitesse {s}, amortissement {d:.2f} : {o:.1f} % du temps en oscillation → {r}':
+        'Speed {s}, damping {d:.2f}: {o:.1f} % of the time oscillating → {r}',
     'stable':
         'stable',
     'vibre':
         'vibrates',
     "Tous les paliers vibrent : essai avec plus d'amortissement.":
         'Every step vibrates: trying more damping.',
-    'Résultat : vitesse du filtre {s}, amortissement {d} %':
-        'Result: filter speed {s}, damping {d} %',
+    'Résultat : vitesse du filtre {s}, amortissement {d:.2f}':
+        'Result: filter speed {s}, damping {d:.2f}',
     "Réglage appliqué (pas encore enregistré). Essaie la pédale, puis garde-le ou reviens à tes réglages d'avant.":
         'Setting applied (not stored yet). Try the pedal, then keep it or go back to your previous settings.',
     'Aucun réglage stable trouvé':
@@ -2043,12 +2043,18 @@ EN = {
     "de force » (onglet Filtre).":
         'IMM filter stuck at its limit: the pedal no longer follows the foot. Pick another "Load cell filter type" '
         '(Filter tab).',
-    "Aucun réglage stable, le plus calme : vitesse du filtre {s}, amortissement {d} % ({o:.1f} % du temps en "
+    "Aucun réglage stable, le plus calme : vitesse du filtre {s}, amortissement {d:.2f} ({o:.1f} % du temps en "
     "oscillation)":
-        "No stable setting, the calmest: filter speed {s}, damping {d} % ({o:.1f} % of the time oscillating)",
+        "No stable setting, the calmest: filter speed {s}, damping {d:.2f} ({o:.1f} % of the time oscillating)",
     "Réglage le plus calme appliqué (pas encore enregistré). Essaie la pédale : garde-le s'il te convient, sinon "
     "reviens à tes réglages d'avant et vérifie la mécanique (jeu, frottements), la précharge et le début de la "
     "courbe de force.":
         "Calmest setting applied (not saved yet). Try the pedal: keep it if it suits you, otherwise go back to your "
         "previous settings and check the mechanics (play, friction), the preload and the start of the force curve.",
+    "Masse ressentie au bout de la pédale. Plus lourde : pédale plus calme mais plus lente à suivre le pied.":
+        "Mass felt at the end of the pedal. Heavier: calmer pedal but slower to follow the foot.",
+    "Taux d'amortissement : 1 = juste assez pour ne pas rebondir, plus haut = pédale plus freinée, contre les "
+    "vibrations. Le firmware ne descend pas sous 0,5.":
+        "Damping ratio: 1 = just enough not to bounce, higher = more braked pedal, against vibration. The firmware "
+        "does not go below 0.5.",
 }

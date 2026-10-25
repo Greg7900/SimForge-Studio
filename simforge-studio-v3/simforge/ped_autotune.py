@@ -23,7 +23,7 @@ from .theme import C
 from .widgets import hint
 
 SPEEDS = (255, 180, 128, 90, 64, 40, 20)  # « Vitesse du filtre », de la plus réactive à la plus calme
-DAMPINGS = (150, 200, 250)              # « Amortissement virtuel » (%) essayés si tous les paliers oscillent
+DAMPINGS = (150, 200, 250)              # « Amortissement virtuel » (taux ×100) si tous les paliers oscillent
 OSC_MAX = 0.002                         # part de trames en oscillation tolérée (bruit de détection)
 MIN_TRAVEL = 15.0                       # course parcourue (%) pour qu'un palier soit valable
 KALMAN, NONE, IMM = 0, 3, 4
@@ -149,8 +149,9 @@ class AutoTune(QWidget):
             self.todo.setText(T("Pose le pied sur la pédale SANS appuyer, et ne bouge plus."))
         else:
             n = SPEEDS.index(kw["kfModelNoise_u8"]) + 1 if kw["kfModelNoise_u8"] in SPEEDS else 0
-            self.step_lbl.setText(T("Vitesse du filtre {s}, amortissement {d} %").format(
-                s=kw["kfModelNoise_u8"], d=kw["virtualPedalDampingInPercent_u8"]) + (f"  ({n}/{len(SPEEDS)})" if n else ""))
+            self.step_lbl.setText(T("Vitesse du filtre {s}, amortissement {d:.2f}").format(
+                s=kw["kfModelNoise_u8"], d=kw["virtualPedalDampingInPercent_u8"] / 100)
+                + (f"  ({n}/{len(SPEEDS)})" if n else ""))
             self.todo.setText(T("Attends… puis appuie et relâche doucement, plusieurs fois, comme quand ça vibrait."))
         self.timer.start(50)
         self._buttons()
@@ -209,8 +210,8 @@ class AutoTune(QWidget):
         ok = osc <= OSC_MAX
         kw = c["kw"]
         self.results.append(("speed", kw, osc, ok))
-        self._say(T("Vitesse {s}, amortissement {d} % : {o:.1f} % du temps en oscillation → {r}").format(
-            s=kw["kfModelNoise_u8"], d=kw["virtualPedalDampingInPercent_u8"], o=osc * 100,
+        self._say(T("Vitesse {s}, amortissement {d:.2f} : {o:.1f} % du temps en oscillation → {r}").format(
+            s=kw["kfModelNoise_u8"], d=kw["virtualPedalDampingInPercent_u8"] / 100, o=osc * 100,
             r=T("stable") if ok else T("vibre")))
         if not self.steps and not any(r[3] for r in self.results if r[0] == "speed") \
                 and kw["virtualPedalDampingInPercent_u8"] < DAMPINGS[-1]:
@@ -230,8 +231,8 @@ class AutoTune(QWidget):
             self.final = self._cfg(**kw)
             self.final["debugFlags0_u8"] = self.orig["debugFlags0_u8"]
             self._send(self.final)
-            self.step_lbl.setText(T("Résultat : vitesse du filtre {s}, amortissement {d} %").format(
-                s=kw["kfModelNoise_u8"], d=kw["virtualPedalDampingInPercent_u8"]))
+            self.step_lbl.setText(T("Résultat : vitesse du filtre {s}, amortissement {d:.2f}").format(
+                s=kw["kfModelNoise_u8"], d=kw["virtualPedalDampingInPercent_u8"] / 100))
             self.todo.setText(T("Réglage appliqué (pas encore enregistré). Essaie la pédale, puis garde-le ou "
                                 "reviens à tes réglages d'avant."))
         else:
@@ -243,8 +244,8 @@ class AutoTune(QWidget):
                 self.final["debugFlags0_u8"] = self.orig["debugFlags0_u8"]
                 self._send(self.final)
                 self.step_lbl.setText(T("Aucun réglage stable, le plus calme : vitesse du filtre {s}, amortissement "
-                                        "{d} % ({o:.1f} % du temps en oscillation)").format(
-                    s=kw["kfModelNoise_u8"], d=kw["virtualPedalDampingInPercent_u8"], o=osc * 100))
+                                        "{d:.2f} ({o:.1f} % du temps en oscillation)").format(
+                    s=kw["kfModelNoise_u8"], d=kw["virtualPedalDampingInPercent_u8"] / 100, o=osc * 100))
                 self.todo.setText(T("Réglage le plus calme appliqué (pas encore enregistré). Essaie la pédale : "
                                     "garde-le s'il te convient, sinon reviens à tes réglages d'avant et vérifie la "
                                     "mécanique (jeu, frottements), la précharge et le début de la courbe de force."))

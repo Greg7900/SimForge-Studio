@@ -351,10 +351,16 @@ PFIELDS = [
            tip=T("Valeur brute du firmware ; 0 = jamais.")),
     PField("wakeOnPluginOnly_u8", T("Au démarrage"), "enum",
            items=[(0, T("la pédale démarre seule")), (1, T("attend le logiciel (veille)"))], group=G_GEN),
-    PField("virtualPedalMassInPercent_u8", T("Masse virtuelle"), unit="%", group=G_DYN),
-    PField("virtualPedalDampingInPercent_u8", T("Amortissement virtuel"), unit="%", group=G_DYN),
+    # le firmware lit « …InPercent » comme masse en kg et taux d'amortissement ×100 (StepperMovementStrategy.h),
+    # bornés à 0,2…5 kg et 0,5…5 : on affiche les vraies grandeurs ; plage = ce que le firmware applique (octet)
+    PField("virtualPedalMassInPercent_u8", T("Masse virtuelle"), lo=0.2, hi=2.55, unit="kg", scale=0.01, dec=2,
+           group=G_DYN, tip=T("Masse ressentie au bout de la pédale. Plus lourde : pédale plus calme mais plus lente "
+                              "à suivre le pied.")),
+    PField("virtualPedalDampingInPercent_u8", T("Amortissement virtuel"), lo=0.5, hi=2.55, scale=0.01, dec=2,
+           group=G_DYN, tip=T("Taux d'amortissement : 1 = juste assez pour ne pas rebondir, plus haut = pédale "
+                              "plus freinée, contre les vibrations. Le firmware ne descend pas sous 0,5.")),
     PField("dampingProgression_u8", T("Progressivité de l'amortissement"), hi=100, unit="%", group=G_DYN),
-    PField("coulombFrictionIn0p1N_u8", T("Frottement simulé"), unit="N", scale=0.1, dec=1, group=G_DYN),
+    PField("coulombFrictionIn0p1N_u8", T("Frottement simulé"), hi=25.5, unit="N", scale=0.1, dec=1, group=G_DYN),
     PField("endstopStiffness_kg_mm_u8", T("Raideur de la butée"), unit="kg/mm", group=G_DYN),
     PField("endstopTravelRange_mm_u8", T("Zone de la butée"), unit="mm", group=G_DYN),
     PField("kfModelOrder_u8", T("Type de filtre du capteur de force"), "enum",
