@@ -15,10 +15,10 @@ index e5e40e0..09e07ea 100644
  // V7 version of dev PCB for ESP32-S3-Zero
 diff --git a/ESP32/platformio.envs/env.ControlBoard_V6_OneCable.ini b/ESP32/platformio.envs/env.ControlBoard_V6_OneCable.ini
 new file mode 100644
-index 0000000..5a78f10
+index 0000000..705b611
 --- /dev/null
 +++ b/ESP32/platformio.envs/env.ControlBoard_V6_OneCable.ini
-@@ -0,0 +1,7 @@
+@@ -0,0 +1,12 @@
 +; SimForge : PCB V6, un seul câble (réglages + manette sur l'USB natif de l'ESP32-S3), bip par USB
 +[env:ControlBoard_V6_OneCable]
 +extends = env:ControlBoard_V6
@@ -26,6 +26,35 @@ index 0000000..5a78f10
 +	${env:ControlBoard_V6.build_flags}
 +	-DSIMFORGE_ONE_CABLE
 +	-DCFG_TUD_CDC_TX_BUFSIZE=16384 ; comme la V7 : un lot complet d'états tient dans le tampon USB
++; manette nommée comme la pédale (FFB_Pedal_Brake…) et non « TinyUSB HID » : voir simforge_usb_hid_name.py
++extra_scripts =
++	${env.extra_scripts}
++	pre:simforge_usb_hid_name.py
++lib_extra_dirs = .pio/simforge_libs
+diff --git a/ESP32/simforge_usb_hid_name.py b/ESP32/simforge_usb_hid_name.py
+new file mode 100644
+index 0000000..f73e07d
+--- /dev/null
++++ b/ESP32/simforge_usb_hid_name.py
+@@ -0,0 +1,18 @@
++# SimForge: one-cable build = composite USB device (CDC + HID). Windows then names the joystick after the HID
++# interface string, hard-coded "TinyUSB HID" in the Arduino core (all pedals look alike in games).
++# Copy of the core USB library with that string replaced by the product name (FFB_Pedal_Brake...), found by
++# the library finder before the core one (lib_extra_dirs). The core package itself is not modified.
++Import("env")
++import os
++import shutil
++
++src = os.path.join(env.PioPlatform().get_package_dir("framework-arduinoespressif32"), "libraries", "USB")
++dst = os.path.join(env.subst("$PROJECT_DIR"), ".pio", "simforge_libs", "USB")
++shutil.rmtree(dst, ignore_errors=True)
++shutil.copytree(src, dst)
++f = os.path.join(dst, "src", "USBHID.cpp")
++code = open(f, encoding="utf-8").read()
++old = 'tinyusb_add_string_descriptor("TinyUSB HID")'
++assert code.count(old) == 1, "USBHID.cpp: interface string not found"
++open(f, "w", encoding="utf-8").write(code.replace(old, "tinyusb_add_string_descriptor(USB.productName())"))
++print("SimForge: HID interface string = product name")
 diff --git a/ESP32/src/Main.cpp b/ESP32/src/Main.cpp
 index f27a54b..1133517 100644
 --- a/ESP32/src/Main.cpp
