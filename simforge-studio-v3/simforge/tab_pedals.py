@@ -542,6 +542,7 @@ class PedalsTab(QWidget):
         self.cfg = None                 # dernière config lue (brute, complète)
         self.rows: dict[str, PRow] = {}
         self._discard = False
+        self._extra = {}                    # réglages importés sans ligne à l'écran (effets, axe frein d'orteil…)
         self.hist = deque(maxlen=1500)
 
         root = QVBoxLayout(self)
@@ -915,6 +916,8 @@ class PedalsTab(QWidget):
         # « Relire » et le changement de pédale repartent de la pédale
         keep = self.cfg is not None and not self._discard
         self._discard = False
+        # réglages importés sans ligne à l'écran : en attente tant que la pédale ne les a pas
+        self._extra = {k: v for k, v in self._extra.items() if cfg[k] != v} if keep else {}
         self.cfg = dict(cfg)
         for n, r in self.rows.items():
             pending = r.value() if keep and r.modified() else None
@@ -1034,10 +1037,12 @@ class PedalsTab(QWidget):
             c[n] = r.value()
         c.update(self.curve.values())
         c.update(self.joy.values())
+        c.update(self._extra)
         return c
 
     def _dirty(self):
-        n = sum(r.modified() for r in self.rows.values()) + int(self.curve.modified()) + int(self.joy.modified())
+        n = (sum(r.modified() for r in self.rows.values()) + int(self.curve.modified()) + int(self.joy.modified())
+             + len(self._extra))
         self.b_apply.setText(T("Appliquer ({n})").format(n=n) if n else T("Appliquer"))
         # le schéma suit les cotes en cours de saisie et montre celles pas encore envoyées
         self.kin.set_cfg(self._effective(), [n for n, r in self.rows.items() if r.modified()])
@@ -1121,6 +1126,12 @@ class PedalsTab(QWidget):
             return
         for n, r in self.rows.items():
             r.set(c[n])
+        # tout le reste du fichier aussi (avant : seuls les réglages affichés, la courbe et l'axe de jeu étaient
+        # repris : effets, fenêtres, axe frein d'orteil… restaient ceux de la pédale)
+        shown = set(self.rows) | set(PP.CURVE_FORCE + PP.CURVE_TRAVEL + PP.JOY_ORIG + PP.JOY_MAP +
+                                     ["quantityOfControl_u8", "numOfJoystickMapControl_u8"])
+        self._extra = {n: c[n] for n in PP.CONFIG_NAMES
+                       if n not in shown and n != "configHash_u32" and c[n] != self.cfg[n]}
         tmp = dict(self.cfg)
         tmp.update({k: c[k] for k in PP.CURVE_FORCE + PP.CURVE_TRAVEL + PP.JOY_ORIG + PP.JOY_MAP +
                     ["quantityOfControl_u8", "numOfJoystickMapControl_u8"]})

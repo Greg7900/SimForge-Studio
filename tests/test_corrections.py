@@ -250,3 +250,24 @@ def test_version_firmware_simforge():
     assert PP.fw_text((26, 43, 7)) == "26.43.07" and not PP.simforge_fw((26, 43, 7))
     assert PP.fw_text((26, 43, 107)) == "26.43.07 SimForge" and PP.simforge_fw((26, 43, 107))
     assert PP.fw_text(None) == "?" and not PP.simforge_fw(None)
+
+
+def test_import_profil_pedale_complet(qapp, tmp_path, monkeypatch):
+    """L'import ne reprenait que les réglages affichés : effets, fenêtres, axe frein d'orteil restaient ceux de la
+    pédale (35 champs perdus)."""
+    from simforge import tab_pedals
+    from simforge.ped_device import PedalManager
+    tab = tab_pedals.PedalsTab(PedalManager(demo=True))
+    tab.port = "DEMO-FREIN"
+    cfg = PP.default_config()
+    tab._on_config("DEMO-FREIN", dict(cfg))
+    prof = dict(cfg, cvAmp1_u8=cfg["cvAmp1_u8"] + 7, gWindow_u8=cfg["gWindow_u8"] + 3, maxForce_fl32=55.0)
+    f = tmp_path / "p.json"
+    f.write_text(json.dumps({"config": prof}), encoding="utf-8")
+    monkeypatch.setattr(tab_pedals.QFileDialog, "getOpenFileName", lambda *a, **k: (str(f), ""))
+    tab.import_()
+    eff = tab._effective()
+    assert {k: eff[k] for k in ("cvAmp1_u8", "gWindow_u8", "maxForce_fl32")} == \
+        {k: prof[k] for k in ("cvAmp1_u8", "gWindow_u8", "maxForce_fl32")}
+    tab._on_config("DEMO-FREIN", dict(prof))            # relu après envoi : plus rien en attente
+    assert tab._extra == {}
