@@ -316,3 +316,38 @@ def test_flashage_reessaie_moins_vite(qapp, monkeypatch):
     f.done.connect(lambda ok, msg: res.append(ok))
     f._run("COM8", {"chip": "esp32s3", "dir": ".", "parts": [["0x0", "x.bin"]]}, False)
     assert bauds == ["921600", "115200"] and res == [True]
+
+
+def test_demarrage_avec_index_z(qapp, monkeypatch):
+    """Codeur avec fil Z (côté moteur, réducteur) : recherche d'index puis calage, et démarrage qui ne refait plus
+    le grand tour de calage (index cherché, calage gardé)."""
+    import time as _t
+    from simforge import tab_setup
+    from simforge.ow_device import Board
+    from simforge.tab_params import SettingsTab
+    monkeypatch.setattr(tab_setup.QMessageBox, "question", lambda *a, **k: tab_setup.QMessageBox.Yes)
+    b = Board(demo=True)
+    st = SettingsTab(b)
+    page = tab_setup.SetupTab(b, st)
+    b.start()
+
+    def wait(cond, s):
+        end = _t.monotonic() + s
+        while _t.monotonic() < end and not cond():
+            qapp.processEvents()
+            _t.sleep(0.02)
+        return cond()
+
+    assert wait(lambda: st.rows["axis0.encoder.config.use_index"].read_ok and page.last is not None, 8)
+    b.fake.motor_cal = True
+    b.fake.v["axis0.motor.config.phase_resistance"] = "0.27"
+    st.rows["axis0.motor.config.phase_resistance"].device = 0.27
+    page.index_startup()
+    assert wait(lambda: "✔" in page.s7.res.text() or "✖" in page.s7.res.text(), 15), page.s7.res.text()
+    assert "✔" in page.s7.res.text()
+    assert b.fake.index_found and b.fake.enc_ready
+    v = b.fake.v
+    assert (v["axis0.encoder.config.use_index"], v["axis0.encoder.config.pre_calibrated"],
+            v["axis0.config.startup_encoder_index_search"], v["axis0.config.startup_encoder_offset_calibration"]) \
+        == ("1", "1", "1", "0")
+    b.stop() if hasattr(b, "stop") else None

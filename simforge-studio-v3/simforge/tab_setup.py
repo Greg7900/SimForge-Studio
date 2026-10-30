@@ -100,7 +100,7 @@ class SetupTab(QWidget):
         self.checks = []
         for t in (T("Jante enlevée : rien ne peut être frappé si le moteur tourne"),
                   T("Coupure de l'alimentation (interrupteur batterie) à portée de main"),
-                  T("Codeur branché sur le connecteur M0, broche Z vide"),
+                  T("Codeur branché sur le connecteur M0 (fil Z seulement pour le démarrage avec index Z)"),
                   T("Résistance de freinage branchée et vissée sur une plaque métallique")):
             cb = QCheckBox(t)
             cb.toggled.connect(self._safety)
@@ -161,10 +161,15 @@ class SetupTab(QWidget):
         # ------------------------------------------------ 7. démarrage
         self.s7 = Step(7, T("Volant prêt dès l'allumage"),
                        T("Sans ce réglage, la carte démarre moteur coupé et il faut refaire l'étape 4 à chaque fois.\n"
-                         "Ce bouton règle la carte pour qu'à chaque allumage elle cale le codeur toute seule (le "
-                         "volant bouge d'environ un tour), puis active le moteur.\n"
-                         "À faire une seule fois, après les étapes 3 et 4."))
-        self.s7.button(T("Régler le démarrage automatique"), self.apply_startup, True)
+                         "Sans index : à chaque allumage la carte cale le codeur toute seule (le moteur fait environ "
+                         "un tour aller-retour), puis active le moteur ; le centre dépend de la position du volant à "
+                         "l'allumage.\n"
+                         "Avec index Z (fil Z branché) : le calage est fait une fois et gardé ; à l'allumage le "
+                         "moteur cherche seulement l'index (au plus un tour moteur, dans un sens). Allume toujours le "
+                         "volant droit : le centre reste le même.\n"
+                         "À faire une seule fois, après les étapes 3 et 4, volant lâché."))
+        self.s7.button(T("Régler le démarrage automatique (sans index)"), self.apply_startup, True)
+        self.b7i = self.s7.button(T("Avec index Z"), self.index_startup)
         right.addWidget(self.s7)
         right.addStretch()
 
@@ -194,7 +199,7 @@ class SetupTab(QWidget):
 
     def _safety(self):
         ok = self._safe() and self.b.serial_ok
-        for b in (self.b3, self.b4, self.b6):
+        for b in (self.b3, self.b4, self.b6, self.b7i):
             b.setEnabled(ok and self.running is None)
             b.setToolTip("" if ok else T("Coche d'abord toutes les précautions de l'étape 0 (et connecte la carte)."))
 
@@ -221,10 +226,10 @@ class SetupTab(QWidget):
         if not self.b.request_state(st):
             return
         # calibrations : survitesse retenue seulement si elle dure 150 ms (le saut de calage dure quelques ms)
-        self.b.arm_guard(True, GUARD_DPS, range_check=(st == 8), sustain_s=0.15 if st in (4, 7) else 0.0)
+        self.b.arm_guard(True, GUARD_DPS, range_check=(st == 8), sustain_s=0.15 if st in (4, 6, 7) else 0.0)
         self.guard_mine = True
         self.running = (step, st, time.perf_counter(), False)
-        {3: self.s3, 4: self.s4, 6: self.s6}[step].result(T("En cours…"), "run")
+        {3: self.s3, 4: self.s4, 6: self.s6, 7: self.s7}[step].result(T("En cours…"), "run")
         self._safety()
 
     def _finish(self):
@@ -233,7 +238,7 @@ class SetupTab(QWidget):
         self.b.arm_guard(False)
         self.guard_mine = False
         self._safety()
-        box = {3: self.s3, 4: self.s4}[step]
+        box = {3: self.s3, 4: self.s4, 7: self.s7}[step]
         if not seen:
             errs = P.errors_of(self.last) if self.last else []
             box.result(T("✖ La carte n'a pas lancé l'opération : ") +
@@ -246,6 +251,10 @@ class SetupTab(QWidget):
         elif step == 4:
             self.b.read(["axis0.encoder.is_ready", "axis0.encoder.error", "axis0.encoder.config.direction",
                          "axis0.error"], "setup4")
+        elif step == 7 and st == 6:
+            self.b.read(["axis0.encoder.index_found", "axis0.encoder.error", "axis0.error"], "setup7i")
+        elif step == 7:
+            self.b.read(["axis0.encoder.is_ready", "axis0.encoder.error", "axis0.error"], "setup7c")
 
     def _tick(self):
         if not self.running or not self.last:
@@ -290,23 +299,31 @@ class SetupTab(QWidget):
     def cpr_end(self):
         self.b.read(["axis0.encoder.shadow_count", "axis0.encoder.config.cpr"], "cpr1")
 
-    def apply_startup(self):
-        want = {"axis0.motor.config.pre_calibrated": 1, "axis0.config.startup_motor_calibration": 0,
-                "axis0.config.startup_encoder_index_search": 0, "axis0.encoder.config.use_index": 0,
-                "axis0.encoder.config.pre_calibrated": 0, "axis0.config.startup_encoder_offset_calibration": 1,
-                "axis0.config.startup_closed_loop_control": 1, "axis0.controller.config.control_mode": 1,
-                "axis0.controller.config.input_mode": 1}
+    # réglages communs aux deux démarrages automatiques (moteur calibré une fois, boucle fermée en couple)
+    START_COMMON = {"axis0.motor.config.pre_calibrated": 1, "axis0.config.startup_motor_calibration": 0,
+                    "axis0.config.startup_closed_loop_control": 1, "axis0.controller.config.control_mode": 1,
+                    "axis0.controller.config.input_mode": 1}
+    START_NO_INDEX = {"axis0.config.startup_encoder_index_search": 0, "axis0.encoder.config.use_index": 0,
+                      "axis0.encoder.config.pre_calibrated": 0, "axis0.config.startup_encoder_offset_calibration": 1}
+    # index Z : le calage relatif à l'index est gardé ; à l'allumage, seule la recherche d'index
+    START_INDEX = {"axis0.config.startup_encoder_index_search": 1, "axis0.encoder.config.use_index": 1,
+                   "axis0.encoder.config.pre_calibrated": 1, "axis0.config.startup_encoder_offset_calibration": 0}
+
+    def _startup_ok(self, want):
         if self.dev("axis0.motor.config.phase_resistance") in (None, 0, 0.0):
             QMessageBox.warning(self, T("Démarrage automatique"),
                                 T("Fais d'abord la calibration moteur (étape 3) : « moteur déjà calibré » "
                                   "n'a de sens qu'après."))
-            return
+            return False
         rows = self.settings.rows
         unread = [p for p in want if p not in rows or not rows[p].read_ok]      # vérifié avant de rien modifier
         if unread:
             self.s7.result(T("Réglages pas encore lus dans la carte : {l}. Relis la carte puis réessaie.")
                            .format(l=", ".join(unread)), "bad")
-            return
+            return False
+        return True
+
+    def _apply_startup(self, want, done):
         for p, v in want.items():
             self.settings.on_edit(p, v)
         # _send (via _flush) marque lui-même les lignes « envoyé » ; rien n'est marqué si l'envoi est annulé
@@ -317,8 +334,25 @@ class SetupTab(QWidget):
             else:
                 self.s7.result(T("Déjà réglé ainsi dans la carte."), "ok")
             return
-        self.s7.result(T("C'est réglé, mais pas encore mémorisé. Clique « Enregistrer dans la carte » en bas à "
-                         "droite : la carte redémarre et fait son tour de calage (lâche le volant)."), "ok")
+        self.s7.result(done, "ok")
+
+    def apply_startup(self):
+        want = dict(self.START_COMMON, **self.START_NO_INDEX)
+        if self._startup_ok(want):
+            self._apply_startup(want, T("C'est réglé, mais pas encore mémorisé. Clique « Enregistrer dans la carte » "
+                                        "en bas à droite : la carte redémarre et fait son tour de calage (lâche le "
+                                        "volant)."))
+
+    def index_startup(self):
+        """Index Z : recherche d'index (état 6), calage du codeur relatif à l'index (état 7), puis calage gardé."""
+        if not self._startup_ok(dict(self.START_COMMON, **self.START_INDEX)):
+            return
+        if QMessageBox.question(self, T("Démarrage avec index Z"), T(
+                "Le moteur va chercher l'index Z (au plus un tour moteur), puis caler le codeur (environ un tour "
+                "moteur aller-retour). Volant lâché, rien qui le gêne. Continuer ?")) != QMessageBox.Yes:
+            return
+        self.b.write("axis0.encoder.config.use_index", 1)
+        self.run(7, 6)
 
     # ------------------------------------------------------------ données
     def on_values(self, vals, tag):
@@ -357,6 +391,25 @@ class SetupTab(QWidget):
             else:
                 self.s4.result(T("✔ Codeur calé, sens trouvé : {d}. Le moteur peut passer en boucle fermée.")
                                .format(d=d), "ok")
+        elif tag == "setup7i":
+            ee = int(num("axis0.encoder.error") or 0)
+            if vals.get("axis0.encoder.index_found") != "1" or ee:
+                errs = P.decode("encoder", ee)
+                self.s7.result(T("✖ Index Z introuvable : vérifie que le fil Z du codeur est branché sur la broche Z "
+                                 "du connecteur M0. ") + "; ".join(f"{n} — {x}" for n, x in errs), "bad")
+                return
+            self.s7.result(T("Index Z trouvé. Calage du codeur…"), "run")
+            self.run(7, 7)
+        elif tag == "setup7c":
+            ee = int(num("axis0.encoder.error") or 0)
+            if vals.get("axis0.encoder.is_ready") != "1" or ee:
+                errs = P.decode("encoder", ee)
+                self.s7.result(T("✖ Calage du codeur raté : ") + ("; ".join(f"{n} — {x}" for n, x in errs) or
+                                                                 T("codeur pas prêt")), "bad")
+                return
+            self._apply_startup(dict(self.START_COMMON, **self.START_INDEX), T(
+                "✔ Index Z trouvé et codeur calé. C'est réglé, mais pas encore mémorisé : clique « Enregistrer dans "
+                "la carte » en bas à droite. Ensuite, volant droit, « Recentrer le volant » puis Enregistrer."))
         elif tag == "cpr0":
             v = num("axis0.encoder.shadow_count")
             if v is None:

@@ -240,6 +240,7 @@ class FakeDevice:
         self.state, self.req_t, self.req = 1, 0.0, None
         self.motor_cal = False
         self.enc_ready = False
+        self.index_found = False
         self.errs = {"axis": 0, "motor": 0, "encoder": 0, "controller": 0, "system": 0}
         self.pos = 0.0          # tours moteur
         self.vel = 0.0
@@ -267,6 +268,7 @@ class FakeDevice:
         self.state, self.req = 1, None
         self.motor_cal = self.v["axis0.motor.config.pre_calibrated"] == "1"
         self.enc_ready = False
+        self.index_found = False
         self.errs = {k: 0 for k in self.errs}
         self.online_at = time.perf_counter() + delay
         self.booting = True
@@ -276,6 +278,8 @@ class FakeDevice:
         self.chain = True
         if self.v["axis0.config.startup_motor_calibration"] == "1":
             self.request(4)
+        elif self.v["axis0.config.startup_encoder_index_search"] == "1":
+            self.request(6)
         elif self.v["axis0.config.startup_encoder_offset_calibration"] == "1":
             self.request(7)
         elif self.v["axis0.config.startup_closed_loop_control"] == "1":
@@ -290,6 +294,11 @@ class FakeDevice:
             return
         if st == 4:
             self.state, self.req, self.req_t = 4, 4, time.perf_counter()
+        elif st == 6:
+            if self.v.get("axis0.encoder.config.use_index") != "1":
+                self.errs["axis"] |= 0x1
+                return
+            self.state, self.req, self.req_t = 6, 6, time.perf_counter()
         elif st == 7:
             if not self.motor_cal:
                 self.errs["axis"] |= 0x1
@@ -328,6 +337,17 @@ class FakeDevice:
                     self.request(7)
                 elif self.chain and self.v["axis0.config.startup_closed_loop_control"] == "1":
                     self.request(8)
+        elif self.state == 6:
+            # recherche d'index : le moteur avance au plus d'un tour jusqu'au repère Z
+            self.pos += 0.4 * dt
+            if now - self.req_t > 1.0:
+                self.index_found = True
+                if self.v.get("axis0.encoder.config.pre_calibrated") == "1":
+                    self.enc_ready = True          # calage gardé, relatif à l'index
+                self.state, self.req = 1, None
+                if self.chain and self.enc_ready and self.v["axis0.config.startup_closed_loop_control"] == "1":
+                    self.request(8)
+                self.chain = False
         elif self.state == 7:
             ph = (now - self.req_t)
             self.pos = 0.5 * math.sin(min(ph, 4.0) / 4.0 * 2 * math.pi)   # ~1 tour aller-retour
@@ -464,7 +484,7 @@ class FakeLink:
                 cpr = int(d.f("axis0.encoder.config.cpr", 45000))
                 return str(int(d.pos * cpr) % cpr)
             if path == "axis0.encoder.index_found":
-                return "0"
+                return "1" if d.index_found else "0"
             if path == "axis0.encoder.pos_estimate":
                 return f"{d.pos:f}"
             if path == "axis0.encoder.vel_estimate":

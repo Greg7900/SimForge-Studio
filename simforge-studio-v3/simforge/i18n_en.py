@@ -2096,4 +2096,24 @@ EN = {
         "In % of the force range (ABS on force) or of the travel (ABS on travel).",
     'Nouvel essai à {b} bauds…':
         'Retrying at {b} baud…',
+    'Codeur branché sur le connecteur M0 (fil Z seulement pour le démarrage avec index Z)':
+        'Encoder plugged into connector M0 (Z wire only for the start-up with index Z)',
+    "Sans ce réglage, la carte démarre moteur coupé et il faut refaire l'étape 4 à chaque fois.\nSans index : à chaque allumage la carte cale le codeur toute seule (le moteur fait environ un tour aller-retour), puis active le moteur ; le centre dépend de la position du volant à l'allumage.\nAvec index Z (fil Z branché) : le calage est fait une fois et gardé ; à l'allumage le moteur cherche seulement l'index (au plus un tour moteur, dans un sens). Allume toujours le volant droit : le centre reste le même.\nÀ faire une seule fois, après les étapes 3 et 4, volant lâché.":
+        'Without this setting, the board starts with the motor off and step 4 must be redone every time.\nWithout index: at each power-up the board aligns the encoder by itself (the motor turns about one turn back and forth), then enables the motor; the centre depends on the wheel position at power-up.\nWith index Z (Z wire connected): the alignment is done once and kept; at power-up the motor only looks for the index (at most one motor turn, in one direction). Always power up with the wheel straight: the centre stays the same.\nDo it only once, after steps 3 and 4, hands off the wheel.',
+    'Régler le démarrage automatique (sans index)':
+        'Set up automatic start-up (no index)',
+    'Avec index Z':
+        'With index Z',
+    'Démarrage avec index Z':
+        'Start-up with index Z',
+    "Le moteur va chercher l'index Z (au plus un tour moteur), puis caler le codeur (environ un tour moteur aller-retour). Volant lâché, rien qui le gêne. Continuer ?":
+        'The motor will look for the index Z (at most one motor turn), then align the encoder (about one motor turn back and forth). Hands off the wheel, nothing in the way. Continue?',
+    'Index Z trouvé. Calage du codeur…':
+        'Index Z found. Aligning the encoder…',
+    "✔ Index Z trouvé et codeur calé. C'est réglé, mais pas encore mémorisé : clique « Enregistrer dans la carte » en bas à droite. Ensuite, volant droit, « Recentrer le volant » puis Enregistrer.":
+        '✔ Index Z found and encoder aligned. It is set, but not saved yet: click "Save to board" at the bottom right. Then, wheel straight, "Recenter wheel" and Save.',
+    '✖ Index Z introuvable : vérifie que le fil Z du codeur est branché sur la broche Z du connecteur M0. ':
+        '✖ Index Z not found: check that the encoder Z wire is connected to the Z pin of connector M0. ',
+    '✖ Calage du codeur raté : ':
+        '✖ Encoder alignment failed: ',
 }
