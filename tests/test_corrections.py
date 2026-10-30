@@ -326,6 +326,7 @@ def test_demarrage_avec_index_z(qapp, monkeypatch):
     from simforge.ow_device import Board
     from simforge.tab_params import SettingsTab
     monkeypatch.setattr(tab_setup.QMessageBox, "question", lambda *a, **k: tab_setup.QMessageBox.Yes)
+    monkeypatch.setattr(tab_setup.QMessageBox, "warning", lambda *a, **k: tab_setup.QMessageBox.Yes)
     b = Board(demo=True)
     st = SettingsTab(b)
     page = tab_setup.SetupTab(b, st)
@@ -351,3 +352,18 @@ def test_demarrage_avec_index_z(qapp, monkeypatch):
             v["axis0.config.startup_encoder_index_search"], v["axis0.config.startup_encoder_offset_calibration"]) \
         == ("1", "1", "1", "0")
     b.stop() if hasattr(b, "stop") else None
+
+
+def test_signaux_abz(qapp):
+    """Affichage A/B/Z : sens du comptage, impulsion Z vue, et tours de codeur par tour moteur (rapport non entier
+    signalé, ex. courroie 72/16 : 4,5)."""
+    from simforge.ow_device import Board
+    from simforge.tab_params import SettingsTab
+    from simforge.tab_encoder import EncoderTab
+    b = Board(demo=True)
+    tab = EncoderTab(b, SettingsTab(b))
+    tab.vals["axis0.encoder.config.cpr"] = "45000"
+    for cnt, zh in ((0, 0), (500, 0), (900, 1), (5000, 1), (10900, 2)):
+        tab._abz({"axis0.encoder.shadow_count": str(cnt), "axis.zhits": str(zh)})
+    assert "↑" in tab.s["ab"].v.text() and "(1)" in tab.s["z"].v.text()      # nouvelle impulsion vue
+    assert tab.s["z_gap"].v.text() == "10000" and tab.s["z_ratio"].v.text() == "4.50"

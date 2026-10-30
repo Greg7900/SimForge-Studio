@@ -747,8 +747,6 @@ EN = {
         'Configuration',
     'Relire la configuration':
         'Read configuration again',
-    'Signal Z (index)':
-        'Z signal (index)',
     'Impulsions Z acceptées':
         'Accepted Z pulses',
     'Parasites Z rejetés':
@@ -799,8 +797,6 @@ EN = {
         'Bandwidth',
     'Points par pas électrique':
         'Counts per electrical step',
-    "Le firmware compte les impulsions Z reçues, même si l'index n'est pas utilisé. Avec une courroie 72/16, le Z doit rester débranché : le compteur doit rester à 0.":
-        'The firmware counts received Z pulses, even when the index is not used. With a 72/16 belt the Z must stay unplugged: the counter must stay at 0.',
     'Chaque milliseconde, la carte envoie la position et la vitesse. Un saut de position qui ne correspond pas à la vitesse mesurée trahit des impulsions perdues ou parasites (câble codeur trop long, masse, pas de résistances de tirage). Tourne le volant à la main, moteur au repos.':
         'Every millisecond the board sends position and speed. A position jump that does not match the measured speed reveals lost or spurious pulses (encoder cable too long, ground, no pull-up resistors). Turn the wheel by hand, motor idle.',
     'Seuil de saut':
@@ -2098,12 +2094,8 @@ EN = {
         'Retrying at {b} baud…',
     'Codeur branché sur le connecteur M0 (fil Z seulement pour le démarrage avec index Z)':
         'Encoder plugged into connector M0 (Z wire only for the start-up with index Z)',
-    "Sans ce réglage, la carte démarre moteur coupé et il faut refaire l'étape 4 à chaque fois.\nSans index : à chaque allumage la carte cale le codeur toute seule (le moteur fait environ un tour aller-retour), puis active le moteur ; le centre dépend de la position du volant à l'allumage.\nAvec index Z (fil Z branché) : le calage est fait une fois et gardé ; à l'allumage le moteur cherche seulement l'index (au plus un tour moteur, dans un sens). Allume toujours le volant droit : le centre reste le même.\nÀ faire une seule fois, après les étapes 3 et 4, volant lâché.":
-        'Without this setting, the board starts with the motor off and step 4 must be redone every time.\nWithout index: at each power-up the board aligns the encoder by itself (the motor turns about one turn back and forth), then enables the motor; the centre depends on the wheel position at power-up.\nWith index Z (Z wire connected): the alignment is done once and kept; at power-up the motor only looks for the index (at most one motor turn, in one direction). Always power up with the wheel straight: the centre stays the same.\nDo it only once, after steps 3 and 4, hands off the wheel.',
     'Régler le démarrage automatique (sans index)':
         'Set up automatic start-up (no index)',
-    'Avec index Z':
-        'With index Z',
     'Démarrage avec index Z':
         'Start-up with index Z',
     "Le moteur va chercher l'index Z (au plus un tour moteur), puis caler le codeur (environ un tour moteur aller-retour). Volant lâché, rien qui le gêne. Continuer ?":
@@ -2116,4 +2108,28 @@ EN = {
         '✖ Index Z not found: check that the encoder Z wire is connected to the Z pin of connector M0. ',
     '✖ Calage du codeur raté : ':
         '✖ Encoder alignment failed: ',
+    "Sans ce réglage, la carte démarre moteur coupé et il faut refaire l'étape 4 à chaque fois.\nSans index : à chaque allumage la carte cale le codeur toute seule (le moteur fait environ un tour aller-retour), puis active le moteur ; le centre dépend de la position du volant à l'allumage.\nAvec index Z (fil Z branché) : le calage est fait une fois et gardé ; à l'allumage le moteur cherche seulement l'index (au plus un tour moteur, dans un sens). Allume toujours le volant droit : le centre reste le même. Seulement si le codeur fait un nombre ENTIER de tours par tour moteur : jamais avec une courroie 72/16 (4,5 tours).\nÀ faire une seule fois, après les étapes 3 et 4, volant lâché.":
+        'Without this setting, the board starts with the motor off and step 4 must be redone every time.\nWithout index: at each power-up the board aligns the encoder by itself (the motor turns about one turn back and forth), then enables the motor; the centre depends on the wheel position at power-up.\nWith index Z (Z wire connected): the alignment is done once and kept; at power-up the motor only looks for the index (at most one motor turn, in one direction). Always power up with the wheel straight: the centre stays the same. Only if the encoder makes a WHOLE number of turns per motor turn: never with a 72/16 belt (4.5 turns).\nDo it only once, after steps 3 and 4, hands off the wheel.',
+    'Avec index Z (rapport entier seulement)':
+        'With index Z (whole ratio only)',
+    "Le codeur fait-il un nombre ENTIER de tours pour un tour de moteur (codeur sur l'axe du moteur, ou rapport 1, 2, 3…) ?\n\nAvec un rapport non entier, comme une courroie 72/16 (4,5 tours), NE CONTINUE PAS : à l'allumage, la carte pourrait se caler sur un autre repère Z et le moteur pousserait dans le mauvais sens.\n\nSi le rapport est entier : le moteur va chercher l'index Z (au plus un tour moteur), puis caler le codeur. Volant lâché. Continuer ?":
+        'Does the encoder make a WHOLE number of turns per motor turn (encoder on the motor shaft, or ratio 1, 2, 3…)?\n\nWith a non-whole ratio, such as a 72/16 belt (4.5 turns), DO NOT CONTINUE: at power-up the board could lock onto another Z mark and the motor would push the wrong way.\n\nIf the ratio is whole: the motor will look for the index Z (at most one motor turn), then align the encoder. Hands off the wheel. Continue?',
+    'Signaux A / B / Z':
+        'A / B / Z signals',
+    'A / B (comptage)':
+        'A / B (counting)',
+    'Z (index)':
+        'Z (index)',
+    'Écart entre deux Z (≈)':
+        'Gap between two Z (≈)',
+    'Tours codeur / tour moteur (≈)':
+        'Encoder / motor turns (≈)',
+    "Moteur au repos, tourne le volant lentement à la main. A et B font compter le codeur ; Z envoie une impulsion par tour de codeur (le firmware les compte même si l'index n'est pas utilisé). Avec une courroie 72/16, le Z doit rester débranché : le compteur doit rester à 0.":
+        'Motor idle, turn the wheel slowly by hand. A and B make the encoder count; Z sends one pulse per encoder turn (the firmware counts them even if the index is not used). With a 72/16 belt, Z must stay disconnected: the counter must stay at 0.',
+    'immobile':
+        'still',
+    "pas d'impulsion":
+        'no pulse',
+    'impulsion vue ({n})':
+        'pulse seen ({n})',
 }

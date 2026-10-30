@@ -35,6 +35,9 @@ class EncoderTab(QWidget):
         self.samples = 0
         self.max_dev = 0.0
         self.z_start = None
+        self.abz_prev = None                # (compteur, impulsions Z) de la lecture précédente
+        self.z_at = []                      # compteur relevé à chaque impulsion Z isolée
+        self.z_flash = 0.0
 
         root = QHBoxLayout(self)
         root.setContentsMargins(16, 12, 16, 12)
@@ -42,11 +45,35 @@ class EncoderTab(QWidget):
         col = QVBoxLayout()
         col.setSpacing(12)
 
+        self.s = {}
+        c, l = card(T("Signaux A / B / Z"))
+        l.addWidget(hint(T("Moteur au repos, tourne le volant lentement à la main. A et B font compter le codeur ; "
+                           "Z envoie une impulsion par tour de codeur (le firmware les compte même si l'index n'est "
+                           "pas utilisé). Avec une courroie 72/16, le Z doit rester débranché : le compteur doit "
+                           "rester à 0.")))
+        self.s["ab"] = StatRow(T("A / B (comptage)"), T("pts"))
+        self.s["z"] = StatRow(T("Z (index)"), "")
+        self.s["z_gap"] = StatRow(T("Écart entre deux Z (≈)"), T("pts"))
+        self.s["z_ratio"] = StatRow(T("Tours codeur / tour moteur (≈)"), "")
+        for k in ("ab", "z", "z_gap", "z_ratio"):
+            self.s[k].set("—")
+            l.addWidget(self.s[k])
+        self.s["axis.zhits"] = StatRow(T("Impulsions Z acceptées"), "")
+        self.s["axis.zglitch"] = StatRow(T("Parasites Z rejetés"), "")
+        l.addWidget(self.s["axis.zhits"])
+        l.addWidget(self.s["axis.zglitch"])
+        b = QPushButton(T("Remettre les compteurs Z à zéro"))
+        b.clicked.connect(self._z_reset)
+        hl = QHBoxLayout()
+        hl.addWidget(b)
+        hl.addStretch()
+        l.addLayout(hl)
+        col.addWidget(c)
+
         c, l = card(T("Compteurs ODrive (port série)"))
         self.poll = QCheckBox(T("Lecture continue (4 fois par seconde)"))
         self.poll.setChecked(True)
         l.addWidget(self.poll)
-        self.s = {}
         for k, lab, u in (("axis0.encoder.shadow_count", T("Compteur total"), T("pts")),
                           ("axis0.encoder.count_in_cpr", T("Position dans le tour"), T("pts")),
                           ("axis0.encoder.pos_estimate", T("Position estimée"), T("tours")),
@@ -79,20 +106,6 @@ class EncoderTab(QWidget):
         l.addLayout(hl)
         col.addWidget(c)
 
-        c, l = card(T("Signal Z (index)"))
-        l.addWidget(hint(T("Le firmware compte les impulsions Z reçues, même si l'index n'est pas utilisé. Avec une "
-                           "courroie 72/16, le Z doit rester débranché : le compteur doit rester à 0.")))
-        self.s["axis.zhits"] = StatRow(T("Impulsions Z acceptées"), "")
-        self.s["axis.zglitch"] = StatRow(T("Parasites Z rejetés"), "")
-        l.addWidget(self.s["axis.zhits"])
-        l.addWidget(self.s["axis.zglitch"])
-        b = QPushButton(T("Remettre les compteurs Z à zéro"))
-        b.clicked.connect(self._z_reset)
-        hl = QHBoxLayout()
-        hl.addWidget(b)
-        hl.addStretch()
-        l.addLayout(hl)
-        col.addWidget(c)
         col.addStretch()
         w = QWidget()
         w.setLayout(col)
@@ -184,6 +197,42 @@ class EncoderTab(QWidget):
             return
         self.b.read(POLL, "enc_poll")
 
+    def _abz(self, vals):
+        """A/B : le compteur bouge (et dans quel sens) ; Z : nouvelle impulsion depuis la lecture précédente.
+        Le compteur est relevé à chaque impulsion Z isolée : l'écart entre deux donne les points par tour de codeur
+        (approché : le volant bouge pendant les 250 ms entre deux lectures)."""
+        cnt, zh = P.to_float(vals.get("axis0.encoder.shadow_count")), P.to_float(vals.get("axis.zhits"))
+        if cnt is None:
+            return
+        prev, self.abz_prev = self.abz_prev, (cnt, zh)
+        if prev is None:
+            return
+        d = cnt - prev[0]
+        if abs(d) < 2:
+            self.s["ab"].set(T("immobile"))
+        else:
+            self.s["ab"].set(f"{'↑' if d > 0 else '↓'} {d:+.0f}", C["ok"])
+        if zh is None or prev[1] is None:
+            return
+        new = zh - prev[1]
+        if new > 0:
+            self.z_flash = time.monotonic() + 1.5
+            self.s["z"].set(T("impulsion vue ({n})").format(n=int(new)), C["ok"])
+            if new == 1:
+                self.z_at = (self.z_at + [cnt])[-2:]
+                if len(self.z_at) == 2 and abs(self.z_at[1] - self.z_at[0]) > 10:
+                    gap = abs(self.z_at[1] - self.z_at[0])
+                    self.s["z_gap"].set(f"{gap:.0f}")
+                    cpr = P.to_float(self.vals.get("axis0.encoder.config.cpr"))
+                    if cpr:
+                        r = cpr / gap
+                        whole = abs(r - round(r)) < 0.1
+                        self.s["z_ratio"].set(f"{r:.2f}", C["ok"] if whole else C["warn"])
+            else:
+                self.z_at = []             # plusieurs impulsions dans la même lecture : écart inconnu
+        elif time.monotonic() > self.z_flash:
+            self.s["z"].set(T("pas d'impulsion"))
+
     def _z_reset(self):
         self.b.write("axis.zhits", 0)
         self.b.write("axis.zglitch", 0)
@@ -194,6 +243,8 @@ class EncoderTab(QWidget):
             return
         self.vals.update({k: v for k, v in vals.items() if v is not None})
         g = self.vals.get
+        if tag == "enc_poll":
+            self._abz(vals)
         for k in POLL:
             if k in vals and k in self.s:
                 v = vals[k]

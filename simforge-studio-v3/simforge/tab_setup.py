@@ -166,10 +166,11 @@ class SetupTab(QWidget):
                          "l'allumage.\n"
                          "Avec index Z (fil Z branché) : le calage est fait une fois et gardé ; à l'allumage le "
                          "moteur cherche seulement l'index (au plus un tour moteur, dans un sens). Allume toujours le "
-                         "volant droit : le centre reste le même.\n"
+                         "volant droit : le centre reste le même. Seulement si le codeur fait un nombre ENTIER de "
+                         "tours par tour moteur : jamais avec une courroie 72/16 (4,5 tours).\n"
                          "À faire une seule fois, après les étapes 3 et 4, volant lâché."))
         self.s7.button(T("Régler le démarrage automatique (sans index)"), self.apply_startup, True)
-        self.b7i = self.s7.button(T("Avec index Z"), self.index_startup)
+        self.b7i = self.s7.button(T("Avec index Z (rapport entier seulement)"), self.index_startup)
         right.addWidget(self.s7)
         right.addStretch()
 
@@ -347,9 +348,16 @@ class SetupTab(QWidget):
         """Index Z : recherche d'index (état 6), calage du codeur relatif à l'index (état 7), puis calage gardé."""
         if not self._startup_ok(dict(self.START_COMMON, **self.START_INDEX)):
             return
-        if QMessageBox.question(self, T("Démarrage avec index Z"), T(
-                "Le moteur va chercher l'index Z (au plus un tour moteur), puis caler le codeur (environ un tour "
-                "moteur aller-retour). Volant lâché, rien qui le gêne. Continuer ?")) != QMessageBox.Yes:
+        # codeur entraîné avec un rapport non entier (courroie 72/16 = 4,5 tours) : plusieurs repères Z par tour moteur,
+        # à des angles électriques différents ; selon la position à l'allumage, la carte se calerait sur un autre
+        # repère et le calage gardé serait faux (couple dans le mauvais sens)
+        if QMessageBox.warning(self, T("Démarrage avec index Z"), T(
+                "Le codeur fait-il un nombre ENTIER de tours pour un tour de moteur (codeur sur l'axe du moteur, ou "
+                "rapport 1, 2, 3…) ?\n\nAvec un rapport non entier, comme une courroie 72/16 (4,5 tours), NE "
+                "CONTINUE PAS : à l'allumage, la carte pourrait se caler sur un autre repère Z et le moteur pousserait "
+                "dans le mauvais sens.\n\nSi le rapport est entier : le moteur va chercher l'index Z (au plus un tour "
+                "moteur), puis caler le codeur. Volant lâché. Continuer ?"),
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No) != QMessageBox.Yes:
             return
         self.b.write("axis0.encoder.config.use_index", 1)
         self.run(7, 6)
