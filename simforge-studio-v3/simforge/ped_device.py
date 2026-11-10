@@ -721,6 +721,13 @@ class PedalManager(QObject):
                     if p.vid is not None and (p.vid, p.pid) in CANDIDATE_VIDPID and p.device not in self.links]
         return out
 
+    def bridge_name(self) -> str:
+        """Nom que le récepteur annonce lui-même en USB (lu sur l'appareil, pas dans la mémoire de Windows)."""
+        try:
+            return next((e.get("product_string") or "" for e in hid.enumerate(*BRIDGE_VIDPID)), "") if hid else ""
+        except Exception:
+            return ""
+
     def wired(self) -> list[PedalInfo]:
         """Pédales branchées par câble (l'appairage ne se fait que par câble)."""
         return [l.info for l in self.links.values() if not isinstance(l, WirelessPedal)]

@@ -248,7 +248,8 @@ class WirelessTab(QWidget):
                         "(manette du récepteur) » ; ferme SimHub ; vérifie qu'il est flashé avec le firmware "
                         "« Récepteur sans fil ».").format(p=self.port_cb.currentText() or "—", e=err), "warn")
         else:
-            self._say(T("Récepteur trouvé : {m}.").format(m=PP.mac_text(got["own"])), "ok")
+            self._say(T("Récepteur trouvé : {m}.").format(m=PP.mac_text(got["own"])) +
+                      (f" USB : « {self.m.bridge_name()} »" if self.m.bridge_name() else ""), "ok")
 
     def pair(self):
         macs, err = merge_table(self.ped, self.bridge)
