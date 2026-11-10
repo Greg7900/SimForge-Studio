@@ -2200,4 +2200,18 @@ EN = {
         '(nothing received)',
     'Journal de démarrage affiché ci-dessous.':
         'Boot log shown below.',
+    'Adresse du récepteur inconnue : branche-le par sa prise USB et clique Détecter.':
+        'Receiver address unknown: plug it in through its USB socket and click Detect.',
+    "À faire une fois. 1. Branche chaque pédale en USB (elles doivent apparaître dans Réglages, chacune avec son rôle). 2. Branche le récepteur par sa prise USB : il apparaît ci-dessous comme « USB (manette du récepteur) ». 3. Détecter, puis Appairer. Ensuite, les câbles des pédales peuvent être retirés ; le récepteur reste sur sa prise USB, c'est lui la manette pour les jeux. Ferme SimHub pendant l'opération.":
+        'Do this once. 1. Plug each pedal in over USB (they must show up in Settings, each with its role). 2. Plug the receiver in through its USB socket: it shows up below as "USB (receiver game controller)". 3. Detect, then Pair. Afterwards, the pedal cables can be removed; the receiver stays on its USB socket, it is the game controller. Close SimHub during the operation.',
+    'USB (manette du récepteur)':
+        'USB (receiver game controller)',
+    "Le récepteur ne répond pas sur {p} ({e}). Branche-le par sa prise USB et choisis « USB (manette du récepteur) » ; ferme SimHub ; vérifie qu'il est flashé avec le firmware « Récepteur sans fil ».":
+        'The receiver does not answer on {p} ({e}). Plug it in through its USB socket and pick "USB (receiver game controller)"; close SimHub; check it is flashed with the "Wireless receiver" firmware.',
+    "✖ Le récepteur n'a pas confirmé ({e}). Les pédales ont reçu la table ; vérifie le récepteur et recommence.":
+        '✖ The receiver did not confirm ({e}). The pedals received the table; check the receiver and try again.',
+    '✔ Appairage enregistré (canal {c}). Les câbles des pédales peuvent être retirés ; le récepteur reste sur sa prise USB.':
+        '✔ Pairing saved (channel {c}). The pedal cables can be removed; the receiver stays on its USB socket.',
+    'récepteur introuvable en USB':
+        'receiver not found on USB',
 }

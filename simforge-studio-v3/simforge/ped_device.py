@@ -20,6 +20,11 @@ from . import ped_protocol as PP
 from .i18n import T
 
 try:
+    import hid  # paquet pip « hidapi »
+except Exception:  # pragma: no cover
+    hid = None
+
+try:
     import serial
     import serial.tools.list_ports
 except Exception:  # pragma: no cover
@@ -34,6 +39,62 @@ EXCLUDE_VIDPID = {(0x1209, 0x0D40)}      # Odrive-Wheel
 def new_ext_acc():
     """Cumuls sur les états détaillés : nombre, trames « en oscillation », force brute (kg) et sa somme des carrés."""
     return {"n": 0, "osc": 0, "r": 0.0, "rr": 0.0}
+
+
+# Récepteur (bridge) : manette USB 303A:8331 avec une interface HID « vendeur » par laquelle le plugin SimHub lui
+# parle (TinyusbJoystick.h). Rapport de sortie 3 et d'entrée 2 : [type 1 = début, 2 = suite][taille totale]
+# [taille du morceau][données], 63 octets après l'identifiant.
+BRIDGE_VIDPID = (0x303A, 0x8331)
+BRIDGE_USB = "USB"                       # « port » du récepteur quand on lui parle par sa prise USB (HID)
+HID_OUT, HID_IN, HID_START = 3, 2, 1
+
+
+class HidBridgePort:
+    """Même interface que SerialPort (read/write/close), par l'interface HID vendeur du récepteur."""
+
+    def __init__(self):
+        ents = list(hid.enumerate(*BRIDGE_VIDPID)) if hid else []
+        if not ents:
+            raise OSError(T("récepteur introuvable en USB"))
+        # Windows : une entrée par collection HID ; la nôtre est la page d'usage vendeur (0xFF00)
+        ents.sort(key=lambda e: e.get("usage_page") != 0xFF00)
+        last = None
+        for e in ents:
+            try:
+                d = hid.device()
+                d.open_path(e["path"])
+                self.d = d
+                break
+            except Exception as ex:
+                last = ex
+        else:
+            raise OSError(str(last))
+        self.buf, self.total = bytearray(), 0
+
+    def write(self, b):
+        for i in range(0, len(b), 60):
+            chunk = b[i:i + 60]
+            pkt = bytes((HID_OUT, HID_START if i == 0 else 2, len(b), len(chunk))) + chunk
+            self.d.write(pkt + bytes(64 - len(pkt)))
+
+    def read(self):
+        r = self.d.read(64, 20)
+        if not r or r[0] != HID_IN or len(r) < 4:
+            return b""
+        typ, total, n = r[1], r[2], r[3]
+        if typ == HID_START:
+            self.buf, self.total = bytearray(), total
+        self.buf += bytes(r[4:4 + n])
+        if self.total and len(self.buf) >= self.total:
+            out, self.buf, self.total = bytes(self.buf[:self.total]), bytearray(), 0
+            return out
+        return b""
+
+    def close(self):
+        try:
+            self.d.close()
+        except Exception:
+            pass
 
 
 class FakeBridgePort:
@@ -488,10 +549,16 @@ class PedalManager(QObject):
         """Ports série qui ne sont pas une pédale connectée : candidats pour le récepteur (sa prise UART)."""
         if self.demo:
             return ["DEMO-RECEPTEUR"]
-        if serial is None:
-            return []
-        return [p.device for p in serial.tools.list_ports.comports()
-                if p.vid is not None and (p.vid, p.pid) in CANDIDATE_VIDPID and p.device not in self.links]
+        out = []
+        try:
+            if hid and hid.enumerate(*BRIDGE_VIDPID):
+                out.append(BRIDGE_USB)              # sa prise USB : la voie qu'utilise le plugin SimHub
+        except Exception:
+            pass
+        if serial is not None:
+            out += [p.device for p in serial.tools.list_ports.comports()
+                    if p.vid is not None and (p.vid, p.pid) in CANDIDATE_VIDPID and p.device not in self.links]
+        return out
 
     def bridge_exchange(self, port, frame_bytes, wait=6.0):
         """Ouvre le port du récepteur le temps d'un échange : envoie la trame, renvoie (table reçue ou None, erreur).
@@ -503,7 +570,8 @@ class PedalManager(QObject):
             l.wait(800)
         dev = None
         try:
-            dev = FakeBridgePort() if self.demo else SerialPort(port, PP.BAUD)
+            dev = (FakeBridgePort() if self.demo else HidBridgePort() if port == BRIDGE_USB
+                   else SerialPort(port, PP.BAUD))
             parser, got, n_rx, last = PP.Parser(), None, 0, ""
             t_end = time.perf_counter() + wait
             t_send = 0.0

@@ -424,3 +424,44 @@ def test_appairage_de_bout_en_bout_en_demo(qapp, monkeypatch):
     assert wait(lambda: all(t["macs"] == macs and t["channel"] == 6 for t in tab.ped.values()))
     assert not any(p.incompatible for p in mgr.pedals())
     mgr.stop()
+
+
+def test_recepteur_par_hid(monkeypatch):
+    """Le récepteur répond à l'appairage par l'interface HID de sa prise USB (rapports 3 → et 2 ←, découpés en
+    morceaux de 60 octets avec type, taille totale et taille du morceau)."""
+    from simforge import ped_device as D
+    own = bytes((0x34, 0x85, 0x18, 0xBB, 0, 3))
+    sent = []
+
+    class _Dev:
+        def __init__(self):
+            self.rx = []
+
+        def open_path(self, path):
+            assert path == b"vendeur"
+
+        def write(self, pkt):
+            assert len(pkt) == 64 and pkt[0] == D.HID_OUT and pkt[1] == D.HID_START
+            total, n = pkt[2], pkt[3]
+            sent.append(bytes(pkt[4:4 + n]))
+            assert total == n == 48
+            reply = PP.frame(PP.T_MAC, PP.MAC_S.pack(0, 0, 0, 0, bytes(24), own, 3, 11), 0, 0, PP.MAC_VERSION)
+            # réponse en deux morceaux, précédée d'un autre rapport (manette) à ignorer
+            self.rx = [[1] + [0] * 12, [D.HID_IN, 1, 48, 30] + list(reply[:30]) + [0] * 29,
+                       [D.HID_IN, 2, 48, 18] + list(reply[30:]) + [0] * 41]
+
+        def read(self, n, timeout):
+            return self.rx.pop(0) if self.rx else []
+
+        def close(self):
+            pass
+
+    fake_hid = SimpleNamespace(device=_Dev, enumerate=lambda v, p: [
+        {"path": b"manette", "usage_page": 1}, {"path": b"vendeur", "usage_page": 0xFF00}])
+    monkeypatch.setattr(D, "hid", fake_hid)
+    mgr = D.PedalManager.__new__(D.PedalManager)
+    mgr.demo, mgr.paused, mgr.probing, mgr.links = False, set(), {}, {}
+    assert D.BRIDGE_USB in mgr.bridge_ports()
+    got, err = mgr.bridge_exchange(D.BRIDGE_USB, PP.build_mac(), wait=1.0)
+    assert not err and got["own"] == own and got["node"] == 3 and got["channel"] == 11
+    assert PP.Parser().feed(sent[0])[0].ptype == PP.T_MAC

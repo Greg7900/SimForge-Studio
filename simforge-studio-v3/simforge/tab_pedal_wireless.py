@@ -1,6 +1,7 @@
 """Page Pédales › Sans fil : appairage ESP-NOW des pédales et du récepteur, comme « System › Wireless » du plugin
 SimHub de ChrGri. Chaque appareil garde en mémoire la table des adresses (embrayage, frein, accélérateur, récepteur)
-et le canal Wi-Fi ; elle s'écrit par le port série : celui de chaque pédale, et la prise UART du récepteur."""
+et le canal Wi-Fi. Elle s'écrit par le port série de chaque pédale et, pour le récepteur, par l'interface HID de sa
+prise USB (comme le plugin) ; sa prise UART reste proposée en secours."""
 from __future__ import annotations
 
 import threading
@@ -10,6 +11,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, Q
                                QSpinBox, QPlainTextEdit, QMessageBox)
 
 from . import ped_protocol as PP
+from .ped_device import BRIDGE_USB
 from .i18n import T
 from .theme import C
 from .widgets import card, hint
@@ -40,7 +42,7 @@ def merge_table(pedals: dict, bridge: dict | None):
         macs = [bytes(6) if (m == t["own"] and i != role) else m for i, m in enumerate(macs)]   # ancienne case
         macs[role] = t["own"]
     if not any(macs[PP.N_BRIDGE]):
-        return None, T("Adresse du récepteur inconnue : branche sa prise UART, choisis son port et clique Détecter.")
+        return None, T("Adresse du récepteur inconnue : branche-le par sa prise USB et clique Détecter.")
     if not seen:
         return None, T("Aucune pédale connectée.")
     return macs, ""
@@ -63,11 +65,12 @@ class WirelessTab(QWidget):
         c, l = card(T("Appairage sans fil (ESP-NOW)"))
         l.addWidget(hint(T(
             "À faire une fois. 1. Branche chaque pédale en USB (elles doivent apparaître dans Réglages, chacune avec "
-            "son rôle). 2. Branche le récepteur par sa prise UART (puce CH343) et choisis son port. 3. Détecter, "
-            "puis Appairer. Ensuite, branche le récepteur par sa prise USB : c'est lui la manette pour les jeux, et "
-            "les câbles des pédales peuvent être retirés. Ferme SimHub pendant l'opération.")))
+            "son rôle). 2. Branche le récepteur par sa prise USB : il apparaît ci-dessous comme « USB (manette du "
+            "récepteur) ». 3. Détecter, puis Appairer. Ensuite, les câbles des pédales peuvent être retirés ; le "
+            "récepteur reste sur sa prise USB, c'est lui la manette pour les jeux. Ferme SimHub pendant "
+            "l'opération.")))
         r = QHBoxLayout()
-        r.addWidget(QLabel(T("Port du récepteur (UART)")))
+        r.addWidget(QLabel(T("Récepteur")))
         self.port_cb = QComboBox()
         self.port_cb.setMinimumWidth(260)
         r.addWidget(self.port_cb)
@@ -144,7 +147,7 @@ class WirelessTab(QWidget):
         cur = self.port_cb.currentData()
         self.port_cb.clear()
         for p in self.m.bridge_ports():
-            self.port_cb.addItem(p, p)
+            self.port_cb.addItem(T("USB (manette du récepteur)") if p == BRIDGE_USB else p, p)
         i = self.port_cb.findData(cur)
         if i >= 0:
             self.port_cb.setCurrentIndex(i)
@@ -232,18 +235,18 @@ class WirelessTab(QWidget):
         self._show()
         if store:
             if got is None:
-                self._say(T("✖ Le récepteur n'a pas confirmé ({e}). Les pédales ont reçu la table ; rebranche la "
-                            "prise UART du récepteur et recommence.").format(e=err), "bad")
+                self._say(T("✖ Le récepteur n'a pas confirmé ({e}). Les pédales ont reçu la table ; vérifie le "
+                            "récepteur et recommence.").format(e=err), "bad")
             else:
                 # relecture des pédales pour confirmer ce qu'elles ont retenu
                 QTimer.singleShot(600, lambda: [self.m.send_mac(p.port) for p in self.m.pedals()])
-                self._say(T("✔ Appairage enregistré (canal {c}). Branche maintenant le récepteur par sa prise USB ; "
-                            "les câbles des pédales peuvent être retirés.").format(c=got["channel"]), "ok")
+                self._say(T("✔ Appairage enregistré (canal {c}). Les câbles des pédales peuvent être retirés ; le "
+                            "récepteur reste sur sa prise USB.").format(c=got["channel"]), "ok")
             return
         if got is None:
-            self._say(T("Récepteur introuvable sur {p} ({e}) : branche sa prise UART (pas la prise USB), ferme "
-                        "SimHub, et vérifie qu'il est flashé avec le firmware « Récepteur sans fil ».").format(
-                p=self.port_cb.currentData() or "—", e=err), "warn")
+            self._say(T("Le récepteur ne répond pas sur {p} ({e}). Branche-le par sa prise USB et choisis « USB "
+                        "(manette du récepteur) » ; ferme SimHub ; vérifie qu'il est flashé avec le firmware "
+                        "« Récepteur sans fil ».").format(p=self.port_cb.currentText() or "—", e=err), "warn")
         else:
             self._say(T("Récepteur trouvé : {m}.").format(m=PP.mac_text(got["own"])), "ok")
 
