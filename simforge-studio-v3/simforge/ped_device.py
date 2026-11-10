@@ -533,9 +533,10 @@ class PedalManager(QObject):
                 dev.close()
             self.paused.discard(port)
 
-    def boot_log(self, port, seconds=3.0):
-        """Redémarre l'ESP32 par la puce série (RTS = broche EN) et renvoie ce qu'il écrit au démarrage, lu à
-        115200 bauds : le programme d'amorçage de la puce y dit pourquoi un firmware ne démarre pas. Bloquant."""
+    def boot_log(self, port, seconds=6.0):
+        """Redémarre l'ESP32 par la puce série (RTS = broche EN) et renvoie ce qu'il écrit au démarrage : d'abord à
+        115200 bauds (programme d'amorçage de la puce : dit pourquoi un firmware ne démarre pas), puis à 3 Mbaud
+        (messages du firmware ChrGri : disent jusqu'où il est allé). Bloquant."""
         if self.demo:
             return "ESP-ROM:esp32s3-20210327\nrst:0x1 (POWERON),boot:0x8 (SPI_FAST_FLASH_BOOT)\nentry 0x403c98d0", ""
         self.paused.add(port)
@@ -554,12 +555,18 @@ class PedalManager(QObject):
             time.sleep(0.15)
             s.reset_input_buffer()
             s.rts = False
-            buf = bytearray()
-            t_end = time.perf_counter() + seconds
-            while time.perf_counter() < t_end:
-                buf += s.read(4096)
-            text = buf.translate(None, PP._NOT_TEXT).decode("ascii", "replace")
-            return "\n".join(ln.rstrip() for ln in text.splitlines() if ln.strip()), ""
+            t0 = time.perf_counter()
+            parts = []
+            for baud, until in ((115200, 0.45), (PP.BAUD, seconds)):
+                s.baudrate = baud
+                buf = bytearray()
+                while time.perf_counter() - t0 < until:
+                    buf += s.read(4096)
+                text = buf.translate(None, PP._NOT_TEXT).decode("ascii", "replace")
+                # lignes d'au moins 3 lettres : le reste est du texte lu à la mauvaise vitesse
+                lines = [ln.strip() for ln in text.splitlines() if sum(c.isalpha() for c in ln) >= 3]
+                parts.append(f"[{baud} bauds]\n" + "\n".join(lines))
+            return "\n".join(parts), ""
         except Exception as e:
             return "", str(e)
         finally:
