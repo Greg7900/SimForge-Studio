@@ -18,6 +18,9 @@ pedal_pcb_v6_un_cable/  version SimForge / SimForge build : env ControlBoard_V6_
                 Flasher par le port UART (CH343) ; retour arrière = flasher pedal_pcb_v6 par ce même port.
                 Flash through the UART port (CH343); to go back, flash pedal_pcb_v6 through that same port.
 bridge_esp32s3/ env Bridge_esp32s3usbotg - optionnel / optional
+bridge_esp32s3_simforge/  version SimForge / SimForge build : env Bridge_SimForge (simforge_changes.diff)
+                - manette nommée « SimForge FFB Pedals Axis » au lieu de « DIY_FFB_PEDAL_JOYSTICK »
+                  / controller named "SimForge FFB Pedals Axis" instead of "DIY_FFB_PEDAL_JOYSTICK"
 
 Flashage manuel / Manual flashing (esptool) :
   esptool --chip esp32s3 --port COMx --baud 921600 write_flash 0x0 bootloader.bin 0x8000 partitions.bin 0xe000 boot_app0.bin 0x10000 firmware.bin

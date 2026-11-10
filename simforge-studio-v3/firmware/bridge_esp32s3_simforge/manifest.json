@@ -1,0 +1,7 @@
+{"order": 2.5,
+ "label": {"fr": "Récepteur sans fil — manette « SimForge FFB Pedals Axis » (version SimForge)",
+           "en": "Wireless receiver — \"SimForge FFB Pedals Axis\" controller (SimForge build)"},
+ "info": {"fr": "Récepteur de ChrGri 26.43.07 pour ESP32-S3 DevKitC, modifié par SimForge : la manette vue par Windows et les jeux s'appelle « SimForge FFB Pedals Axis » au lieu de « DIY_FFB_PEDAL_JOYSTICK ». Rien d'autre ne change (appairage conservé). Flashe par la prise UART. Les jeux y verront une nouvelle manette : refais-y l'assignation des pédales. Modifications : simforge_changes.diff.",
+          "en": "ChrGri receiver 26.43.07 for ESP32-S3 DevKitC, modified by SimForge: the controller seen by Windows and games is named \"SimForge FFB Pedals Axis\" instead of \"DIY_FFB_PEDAL_JOYSTICK\". Nothing else changes (pairing is kept). Flash through the UART socket. Games will see a new controller: assign the pedals again there. Changes: simforge_changes.diff."},
+ "chip": "esp32s3",
+ "parts": [["0x0", "bootloader.bin"], ["0x8000", "partitions.bin"], ["0xe000", "boot_app0.bin"], ["0x10000", "firmware.bin"]]}
