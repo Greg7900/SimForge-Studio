@@ -460,8 +460,55 @@ def test_recepteur_par_hid(monkeypatch):
         {"path": b"manette", "usage_page": 1}, {"path": b"vendeur", "usage_page": 0xFF00}])
     monkeypatch.setattr(D, "hid", fake_hid)
     mgr = D.PedalManager.__new__(D.PedalManager)
-    mgr.demo, mgr.paused, mgr.probing, mgr.links = False, set(), {}, {}
+    mgr.demo, mgr.paused, mgr.probing, mgr.links, mgr.bridge = False, set(), {}, {}, None
     assert D.BRIDGE_USB in mgr.bridge_ports()
     got, err = mgr.bridge_exchange(D.BRIDGE_USB, PP.build_mac(), wait=1.0)
     assert not err and got["own"] == own and got["node"] == 3 and got["channel"] == 11
     assert PP.Parser().feed(sent[0])[0].ptype == PP.T_MAC
+
+
+def test_pedales_sans_fil_par_le_recepteur(qapp):
+    """Le récepteur relaie les pédales appairées : elles apparaissent dans SimForge (voyant, réglages) sans câble,
+    leur configuration se lit et s'envoie à travers lui."""
+    import time as _t
+    from simforge import ped_device as D
+
+    class _Dev:                                  # récepteur : relaie une pédale « frein »
+        def __init__(self):
+            self.fake = D.FakePedalPort(1)
+            self.written = []
+
+        def read(self):
+            return self.fake.read()
+
+        def write(self, b):
+            self.written.append(b)
+            self.fake.write(b)
+
+        def close(self):
+            pass
+
+    mgr = D.PedalManager(demo=True)              # démo : pas de recherche de ports réels
+    dev = _Dev()
+    cfgs = []
+    mgr.config_read.connect(lambda port, c: cfgs.append((port, c)))
+    mgr.bridge = D.BridgeLink(mgr, lambda: dev)
+    mgr.bridge.start()
+
+    def wait(cond, s=5):
+        end = _t.monotonic() + s
+        while _t.monotonic() < end and not cond():
+            qapp.processEvents()
+            _t.sleep(0.02)
+        return cond()
+
+    port = D.WL_PORT + "1"
+    assert wait(lambda: port in mgr.links and cfgs)
+    info = mgr.info(port)
+    assert info.tag == 1 and info.state is not None and cfgs[0][0] == port
+    assert mgr.wired() == [] and [p.port for p in mgr.pedals()] == [port]
+    c = dict(cfgs[0][1], maxForce_fl32=77.0)
+    assert mgr.send_config(port, c, False) == ""
+    assert wait(lambda: dev.fake.cfg["maxForce_fl32"] == 77.0)
+    mgr.bridge.stop()
+    assert wait(lambda: port not in mgr.links and mgr.bridge is None)

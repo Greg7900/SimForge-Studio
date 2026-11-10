@@ -151,7 +151,7 @@ class WirelessTab(QWidget):
         i = self.port_cb.findData(cur)
         if i >= 0:
             self.port_cb.setCurrentIndex(i)
-        live = {p.port for p in self.m.pedals()}
+        live = {p.port for p in self.m.wired()}
         self.ped = {p: t for p, t in self.ped.items() if p in live}
         self._show()
 
@@ -221,7 +221,7 @@ class WirelessTab(QWidget):
 
     def detect(self):
         self.ped = {}
-        for p in self.m.pedals():
+        for p in self.m.wired():
             self.m.send_mac(p.port)
         self._say(T("Détection…"))
         self._bridge(PP.build_mac(), False)
@@ -239,7 +239,7 @@ class WirelessTab(QWidget):
                             "récepteur et recommence.").format(e=err), "bad")
             else:
                 # relecture des pédales pour confirmer ce qu'elles ont retenu
-                QTimer.singleShot(600, lambda: [self.m.send_mac(p.port) for p in self.m.pedals()])
+                QTimer.singleShot(600, lambda: [self.m.send_mac(p.port) for p in self.m.wired()])
                 self._say(T("✔ Appairage enregistré (canal {c}). Les câbles des pédales peuvent être retirés ; le "
                             "récepteur reste sur sa prise USB.").format(c=got["channel"]), "ok")
             return

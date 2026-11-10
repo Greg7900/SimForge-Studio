@@ -45,6 +45,7 @@ def new_ext_acc():
 # parle (TinyusbJoystick.h). Rapport de sortie 3 et d'entrée 2 : [type 1 = début, 2 = suite][taille totale]
 # [taille du morceau][données], 63 octets après l'identifiant.
 BRIDGE_VIDPID = (0x303A, 0x8331)
+WL_PORT = "SANS-FIL-"                    # « port » d'une pédale entendue par le récepteur, suivi de son rôle
 BRIDGE_USB = "USB"                       # « port » du récepteur quand on lui parle par sa prise USB (HID)
 HID_OUT, HID_IN, HID_START = 3, 2, 1
 
@@ -393,6 +394,134 @@ class PedalLink(QThread):
                 mgr._probe_done(self, False)
 
 
+class WirelessPedal:
+    """Pédale vue à travers le récepteur : même interface qu'un PedalLink pour le gestionnaire."""
+
+    def __init__(self, bridge, tag):
+        self.bridge = bridge
+        self.info = PedalInfo(f"{WL_PORT}{tag}")
+        self.info.tag = tag
+        self.n_states = 0
+
+    def send(self, data: bytes, what=""):
+        self.bridge.q.put((data, what and f"→ {self.info.name} : {what}"))
+
+    def stop(self):
+        pass
+
+    def wait(self, _ms=0):
+        return True
+
+
+class BridgeLink(QThread):
+    """Récepteur sans fil branché en USB : il relaie par HID les états et configurations des pédales appairées
+    (trames habituelles, le rôle est dans l'en-tête) et leur transmet actions et configurations. Chaque pédale
+    entendue devient une pédale du gestionnaire, sauf si elle est aussi branchée par câble (le câble l'emporte)."""
+
+    def __init__(self, mgr, opener):
+        super().__init__()
+        self.mgr = mgr
+        self.opener = opener
+        self.q: queue.Queue = queue.Queue()
+        self._run = True
+        self.subs: dict[int, WirelessPedal] = {}
+        self.mac = None                     # dernière table d'appairage reçue du récepteur
+        self.mac_evt = threading.Event()
+
+    def stop(self):
+        self._run = False
+
+    def exchange_mac(self, frame_bytes, wait):
+        self.mac_evt.clear()
+        self.mac = None
+        self.q.put((frame_bytes, ""))
+        return self.mac if self.mac_evt.wait(wait) else None
+
+    def _drop(self, tag):
+        sub = self.subs.pop(tag, None)
+        if sub:
+            self.mgr._lost(sub)
+
+    def run(self):
+        mgr = self.mgr
+        try:
+            dev = self.opener()
+        except Exception as e:
+            mgr.log.emit("debug", f"récepteur : {e}")
+            mgr._bridge_gone(self)
+            return
+        mgr.log.emit("info", T("Récepteur sans fil connecté (USB)"))
+        parser = PP.Parser()
+        t_rate = time.perf_counter()
+        try:
+            while self._run:
+                try:
+                    data = dev.read()
+                    while True:
+                        try:
+                            out, what = self.q.get_nowait()
+                        except queue.Empty:
+                            break
+                        dev.write(out)
+                        if what:
+                            mgr.log.emit("info", what)
+                except Exception as e:
+                    mgr.log.emit("warn", T("Récepteur sans fil : liaison USB perdue ({e})").format(e=e))
+                    break
+                now = time.perf_counter()
+                for fr in parser.feed(data) if data else ():
+                    if fr.ptype == PP.T_MAC:
+                        if fr.data:
+                            self.mac = fr.data
+                            self.mac_evt.set()
+                        continue
+                    if fr.version != PP.VERSION or fr.tag not in (0, 1, 2):
+                        continue
+                    wired = any(l.info.tag == fr.tag for l in list(mgr.links.values())
+                                if not isinstance(l, WirelessPedal))
+                    sub = self.subs.get(fr.tag)
+                    if fr.ptype == PP.T_STATE:
+                        if wired:
+                            self._drop(fr.tag)
+                            continue
+                        if sub is None:
+                            sub = self.subs[fr.tag] = WirelessPedal(self, fr.tag)
+                            mgr._probe_done(sub, True)
+                            sub.send(PP.build_action(tag=fr.tag, returnPedalConfig_u8=1))
+                        info = sub.info
+                        info.last_rx, info.version, info.state = now, fr.version, fr.data
+                        info.fw_v = tuple(fr.data["pedalFirmwareVersion_au8"])
+                        info.fw = PP.fw_text(info.fw_v)
+                        sub.n_states += 1
+                        with mgr.lock:
+                            mgr.buf.append((info.port, now, fr.data))
+                    elif sub is not None and fr.ptype == PP.T_STATE_EXT and fr.data:
+                        info = sub.info
+                        info.ext = fr.data
+                        info.ext_vmax = max(info.ext_vmax, fr.data["servoVoltage0p1V_i16"] / 10)
+                        a, raw = info.ext_acc, fr.data["pedalForceRaw_fl32"]
+                        a["n"] += 1
+                        a["osc"] += 1 if fr.data["admittance_isOscillating"] else 0
+                        a["r"] += raw
+                        a["rr"] += raw * raw
+                    elif sub is not None and fr.ptype == PP.T_CONFIG and fr.data:
+                        sub.info.config = fr.data
+                        mgr.config_read.emit(sub.info.port, dict(fr.data))
+                parser.lines.clear()
+                if now - t_rate >= 1.0:
+                    for sub in self.subs.values():
+                        sub.info.rate = sub.n_states / (now - t_rate)
+                        sub.n_states = 0
+                    t_rate = now
+                for tag in [t for t, s in self.subs.items() if now - s.info.last_rx > 3.0]:
+                    self._drop(tag)                 # pédale éteinte ou hors de portée
+        finally:
+            dev.close()
+            for tag in list(self.subs):
+                self._drop(tag)
+            mgr._bridge_gone(self)
+
+
 class PedalManager(QObject):
     changed = Signal()                       # liste des pédales modifiée
     states = Signal(list)                    # [(port, t, état)]
@@ -412,6 +541,8 @@ class PedalManager(QObject):
         self.probing: dict[str, PedalLink] = {}
         self.blocked: dict[str, float] = {}      # port → instant jusqu'auquel ne pas tester
         self.paused: set[str] = set()            # ports réservés (flashage)
+        self.bridge: BridgeLink | None = None    # récepteur sans fil branché en USB
+        self._bridge_retry = 0.0
         self.lock = threading.Lock()
         self.buf: collections.deque = collections.deque(maxlen=5000)
         self._scan = QTimer(self)
@@ -429,6 +560,9 @@ class PedalManager(QObject):
 
     def stop(self):
         self._scan.stop()
+        if self.bridge:
+            self.bridge.stop()
+            self.bridge.wait(800)
         for l in list(self.links.values()) + list(self.probing.values()):
             l.stop()
         for l in list(self.links.values()) + list(self.probing.values()):
@@ -456,10 +590,27 @@ class PedalManager(QObject):
             return False
         return any(p.device == port and p.vid == ESPRESSIF_VID for p in serial.tools.list_ports.comports())
 
+    def _bridge_gone(self, link):
+        if self.bridge is link:
+            self.bridge = None
+            self._bridge_retry = time.perf_counter() + 3.0
+
+    def _scan_bridge(self, now):
+        if self.demo or self.bridge is not None or hid is None or now < self._bridge_retry:
+            return
+        try:
+            if not hid.enumerate(*BRIDGE_VIDPID):
+                return
+        except Exception:
+            return
+        self.bridge = BridgeLink(self, HidBridgePort)
+        self.bridge.start()
+
     def scan(self):
         if not self.enabled:
             return
         now = time.perf_counter()
+        self._scan_bridge(now)
         for port in self.candidates():
             if port in self.links or port in self.probing or port in self.paused:
                 continue
@@ -560,9 +711,16 @@ class PedalManager(QObject):
                     if p.vid is not None and (p.vid, p.pid) in CANDIDATE_VIDPID and p.device not in self.links]
         return out
 
+    def wired(self) -> list[PedalInfo]:
+        """Pédales branchées par câble (l'appairage ne se fait que par câble)."""
+        return [l.info for l in self.links.values() if not isinstance(l, WirelessPedal)]
+
     def bridge_exchange(self, port, frame_bytes, wait=6.0):
         """Ouvre le port du récepteur le temps d'un échange : envoie la trame, renvoie (table reçue ou None, erreur).
         Bloquant (≈ wait s) : à lancer hors du thread de l'interface."""
+        if port == BRIDGE_USB and self.bridge is not None:      # déjà ouvert pour relayer les pédales
+            got = self.bridge.exchange_mac(frame_bytes, min(wait, 3.0))
+            return got, ("" if got else T("pas de réponse"))
         self.paused.add(port)
         l = self.probing.get(port)
         if l:

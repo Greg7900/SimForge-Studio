@@ -2214,4 +2214,8 @@ EN = {
         '✔ Pairing saved (channel {c}). The pedal cables can be removed; the receiver stays on its USB socket.',
     'récepteur introuvable en USB':
         'receiver not found on USB',
+    'Récepteur sans fil connecté (USB)':
+        'Wireless receiver connected (USB)',
+    'Récepteur sans fil : liaison USB perdue ({e})':
+        'Wireless receiver: USB link lost ({e})',
 }
