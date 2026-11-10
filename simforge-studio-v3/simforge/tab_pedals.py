@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, Q
                                QPlainTextEdit, QTabBar)
 
 from . import ped_protocol as PP
+from .ped_device import WL_PORT
 from .ped_autotune import AutoTune
 from .i18n import T
 from .theme import C
@@ -1054,6 +1055,13 @@ class PedalsTab(QWidget):
             QMessageBox.warning(self, T("Pédale"), "\n".join(probs))
             return
         role = self.rows["pedalType_u8"]
+        if role.modified() and str(self.port).startswith(WL_PORT):
+            # sans fil, le récepteur reconnaît chaque pédale par son adresse rangée dans la case de son rôle :
+            # changer le rôle par radio laisserait sa table d'appairage fausse
+            QMessageBox.information(self, T("Rôle de la pédale"), T(
+                "Le rôle ne se change pas sans fil : le récepteur reconnaît la pédale par son rôle. Branche la "
+                "pédale par câble, change son rôle et enregistre, puis refais l'appairage (page Sans fil)."))
+            return
         if not store and role.modified() and role.device in self.ROLES:
             # le firmware garde le rôle enregistré d'une pédale déjà assignée : seul « Enregistrer » le change
             if QMessageBox.question(self, T("Rôle de la pédale"),

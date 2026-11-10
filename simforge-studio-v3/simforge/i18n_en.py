@@ -2218,4 +2218,8 @@ EN = {
         'Wireless receiver connected (USB)',
     'Récepteur sans fil : liaison USB perdue ({e})':
         'Wireless receiver: USB link lost ({e})',
+    "Le rôle ne se change pas sans fil : le récepteur reconnaît la pédale par son rôle. Branche la pédale par câble, "
+    "change son rôle et enregistre, puis refais l'appairage (page Sans fil).":
+        "The role cannot be changed wirelessly: the receiver identifies the pedal by its role. Plug the pedal in "
+        "with its cable, change its role and save, then pair again (Wireless page).",
 }
