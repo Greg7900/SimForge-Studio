@@ -7,11 +7,12 @@ import os
 import sys
 import threading
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, QTimer, Signal
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QCheckBox,
                                QPlainTextEdit, QProgressBar, QMessageBox)
 
 from . import i18n
+from . import ped_protocol as PP
 from .i18n import T
 from .theme import C
 from .widgets import card, hint
@@ -144,6 +145,7 @@ class PedalFirmwareTab(QWidget):
         super().__init__(parent)
         self.m = mgr
         self.port = None
+        self._seen, self._ids = None, {}
         self.f = Flasher()
         self.f.line.connect(self._line)
         self.f.progress.connect(lambda v: self.bar.setValue(v))
@@ -213,6 +215,9 @@ class PedalFirmwareTab(QWidget):
         self._img()
         self._ports()
         self.m.changed.connect(self._ports)
+        t = QTimer(self)
+        t.timeout.connect(self._poll)
+        t.start(1500)
 
     def _img(self, *_):
         m = self.img.currentData()
@@ -223,19 +228,35 @@ class PedalFirmwareTab(QWidget):
         self.go.setEnabled(True)
         self.img_info.setText(_loc(m.get("info")))
 
+    def _poll(self):
+        if self.isVisible() and _lp and self.go.isEnabled() and {p.device for p in _lp.comports()} != self._seen:
+            self._ports()
+
     def _ports(self, *_):
         cur = self.port_cb.currentData()
         self.port_cb.clear()
         if _lp is None:
             return
-        ped = {p.port: p.name for p in self.m.pedals()}
-        for p in sorted(_lp.comports(), key=lambda p: p.device):
-            if p.vid is None or (p.vid, p.pid) == (0x1209, 0x0D40):
-                continue                      # ignore le volant
-            name = ped.get(p.device)
-            txt = f"{p.device} — " + (name or (p.description or ""))
-            self.port_cb.addItem(txt, p.device)
-        i = self.port_cb.findData(cur)
+        st = i18n.settings()
+        ped = {p.port: p for p in self.m.pedals()}
+        ports = [p for p in sorted(_lp.comports(), key=lambda p: p.device)
+                 if p.vid is not None and (p.vid, p.pid) != (0x1209, 0x0D40)]      # sans le volant
+        new = {p.device for p in ports} - self._seen if self._seen is not None else set()
+        self._ids = {p.device: p.serial_number or p.device for p in ports}
+        for p in ports:
+            key = f"ports/{self._ids[p.device]}"
+            if p.device in ped and ped[p.device].tag in PP.PEDAL_NAMES:
+                st.setValue(key, str(ped[p.device].tag))               # mémorisé par la puce série de la carte
+                what = PP.PEDAL_NAMES[ped[p.device].tag]
+            else:
+                known = st.value(key, "")
+                what = (T("Récepteur") if known == "bridge" else
+                        PP.PEDAL_NAMES[int(known)] + " " + T("(déjà vue)") if known in ("0", "1", "2") else
+                        p.description or "")
+            self.port_cb.addItem(f"{p.device} — {what}" + ("  ● " + T("vient d'être branché") if p.device in new
+                                                           else ""), p.device)
+        self._seen = {p.device for p in ports}
+        i = self.port_cb.findData(sorted(new)[0] if new else cur)
         if i >= 0:
             self.port_cb.setCurrentIndex(i)
 
@@ -273,6 +294,8 @@ class PedalFirmwareTab(QWidget):
         self.go.setEnabled(True)
         if self.port:
             self.m.unpause(self.port)
+        if ok and self.port and os.path.basename(self.img.currentData()["dir"]).startswith("bridge"):
+            i18n.settings().setValue(f"ports/{self._ids.get(self.port, self.port)}", "bridge")
         if ok:
             self.bar.setValue(100)
             self.res.setText(T("Terminé. La pédale redémarre ; elle réapparaît dans Pédales › Réglages."))

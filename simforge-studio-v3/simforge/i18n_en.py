@@ -2222,4 +2222,8 @@ EN = {
     "change son rôle et enregistre, puis refais l'appairage (page Sans fil).":
         "The role cannot be changed wirelessly: the receiver identifies the pedal by its role. Plug the pedal in "
         "with its cable, change its role and save, then pair again (Wireless page).",
+    '(déjà vue)':
+        '(seen before)',
+    "vient d'être branché":
+        'just plugged in',
 }

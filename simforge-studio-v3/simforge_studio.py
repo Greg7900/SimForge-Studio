@@ -36,6 +36,11 @@ def _install_crash_handler():
 
 def main():
     _install_crash_handler()
+    try:        # plantages sans message (code natif) : trace dans crash.log
+        import faulthandler
+        faulthandler.enable(open(LOG.with_name("crash.log"), "a", encoding="utf-8"))
+    except Exception:
+        pass
     ap = argparse.ArgumentParser()
     ap.add_argument("--demo", action="store_true", help="simulated wheel")
     args = ap.parse_args()

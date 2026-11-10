@@ -513,3 +513,23 @@ def test_pedales_sans_fil_par_le_recepteur(qapp):
     assert wait(lambda: dev.fake.cfg["maxForce_fl32"] == 77.0)
     mgr.bridge.stop()
     assert wait(lambda: port not in mgr.links and mgr.bridge is None)
+
+
+def test_ports_nommes_dans_firmware(qapp, monkeypatch):
+    """Page Firmware : le port qui vient d'être branché est signalé et choisi ; un récepteur flashé est reconnu ensuite."""
+    from simforge import tab_pedal_fw as F, i18n
+    from simforge.ped_device import PedalManager
+    mem = {}
+    monkeypatch.setattr(i18n, "settings", lambda: SimpleNamespace(
+        value=lambda k, d="": mem.get(k, d), setValue=lambda k, v: mem.__setitem__(k, v)))
+    ports = [SimpleNamespace(device="COM8", vid=0x1A86, pid=0x55D3, serial_number="A1", description="CH343")]
+    monkeypatch.setattr(F, "_lp", SimpleNamespace(comports=lambda: list(ports)))
+    tab = F.PedalFirmwareTab(PedalManager(demo=True))
+    ports.append(SimpleNamespace(device="COM12", vid=0x1A86, pid=0x55D3, serial_number="B2", description="CH343"))
+    tab._ports()
+    assert tab.port_cb.currentData() == "COM12" and "●" in tab.port_cb.currentText()
+    tab.port = "COM12"
+    tab.img.setCurrentIndex(next(i for i in range(tab.img.count()) if "bridge" in tab.img.itemData(i)["dir"]))
+    tab._done(True, "")
+    tab._ports()
+    assert mem == {"ports/B2": "bridge"} and "COM12 — " + F.T("Récepteur") in tab.port_cb.itemText(tab.port_cb.findData("COM12"))
