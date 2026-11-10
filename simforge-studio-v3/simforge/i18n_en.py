@@ -2184,4 +2184,8 @@ EN = {
         'wireless pairing table saved',
     'Sans fil':
         'Wireless',
+    'rien reçu':
+        'nothing received',
+    '{n} octets reçus, dernier message : « {m} »':
+        '{n} bytes received, last message: "{m}"',
 }

@@ -493,7 +493,7 @@ class PedalManager(QObject):
         return [p.device for p in serial.tools.list_ports.comports()
                 if p.vid is not None and (p.vid, p.pid) in CANDIDATE_VIDPID and p.device not in self.links]
 
-    def bridge_exchange(self, port, frame_bytes, wait=1.5):
+    def bridge_exchange(self, port, frame_bytes, wait=6.0):
         """Ouvre le port du récepteur le temps d'un échange : envoie la trame, renvoie (table reçue ou None, erreur).
         Bloquant (≈ wait s) : à lancer hors du thread de l'interface."""
         self.paused.add(port)
@@ -504,17 +504,28 @@ class PedalManager(QObject):
         dev = None
         try:
             dev = FakeBridgePort() if self.demo else SerialPort(port, PP.BAUD)
-            parser, got = PP.Parser(), None
+            parser, got, n_rx, last = PP.Parser(), None, 0, ""
             t_end = time.perf_counter() + wait
             t_send = 0.0
             while time.perf_counter() < t_end and got is None:
-                if time.perf_counter() - t_send > 0.5:          # renvoyée : le port vient de s'ouvrir
+                # renvoyée toutes les 0,5 s : ouvrir le port peut redémarrer l'ESP32 (circuit d'auto-reset de la
+                # puce série), qui met quelques secondes à écouter
+                if time.perf_counter() - t_send > 0.5:
                     dev.write(frame_bytes)
                     t_send = time.perf_counter()
-                for fr in parser.feed(dev.read() or b""):
+                data = dev.read() or b""
+                n_rx += len(data)
+                for fr in parser.feed(data):
                     if fr.ptype == PP.T_MAC and fr.data:
                         got = fr.data
-            return got, ("" if got else T("pas de réponse"))
+                if parser.lines:
+                    last = parser.lines[-1]
+                    parser.lines.clear()
+            if got:
+                return got, ""
+            # ce qui a été reçu aide à comprendre : rien = mauvais port ou prise ; du texte = autre firmware
+            return None, (T("pas de réponse") + " ; " + (T("rien reçu") if not n_rx else
+                          T("{n} octets reçus, dernier message : « {m} »").format(n=n_rx, m=last[:80] or "?")))
         except Exception as e:
             return None, str(e)
         finally:
