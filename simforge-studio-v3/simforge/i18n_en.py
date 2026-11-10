@@ -2132,4 +2132,56 @@ EN = {
         'no pulse',
     'impulsion vue ({n})':
         'pulse seen ({n})',
+    'Adresse du récepteur inconnue : branche sa prise UART, choisis son port et clique Détecter.':
+        'Receiver address unknown: plug in its UART socket, pick its port and click Detect.',
+    'Aucune pédale connectée.':
+        'No pedal connected.',
+    'Appairage sans fil (ESP-NOW)':
+        'Wireless pairing (ESP-NOW)',
+    'Le même pour tous. Change-le seulement si la liaison décroche (Wi-Fi voisin).':
+        'The same for all devices. Change it only if the link drops (neighbouring Wi-Fi).',
+    'Détecter':
+        'Detect',
+    'Appairer':
+        'Pair',
+    'Détection…':
+        'Detecting…',
+    'Enregistrement…':
+        'Saving…',
+    "À faire une fois. 1. Branche chaque pédale en USB (elles doivent apparaître dans Réglages, chacune avec son rôle). 2. Branche le récepteur par sa prise UART (puce CH343) et choisis son port. 3. Détecter, puis Appairer. Ensuite, branche le récepteur par sa prise USB : c'est lui la manette pour les jeux, et les câbles des pédales peuvent être retirés. Ferme SimHub pendant l'opération.":
+        'Do this once. 1. Plug each pedal in over USB (they must show up in Settings, each with its role). 2. Plug the receiver in through its UART socket (CH343 chip) and pick its port. 3. Detect, then Pair. Afterwards, plug the receiver in through its USB socket: it is the game controller, and the pedal cables can be removed. Close SimHub during the operation.',
+    'Port du récepteur (UART)':
+        'Receiver port (UART)',
+    'Canal Wi-Fi':
+        'Wi-Fi channel',
+    'Appareil':
+        'Device',
+    'Adresse':
+        'Address',
+    'Branché sur':
+        'Plugged into',
+    'Enregistré dans le récepteur':
+        'Stored in the receiver',
+    'aucun port choisi':
+        'no port selected',
+    'Récepteur':
+        'Receiver',
+    "{p} n'a pas de rôle : choisis-le dans Réglages (Rôle de la pédale) et enregistre.":
+        '{p} has no role: choose it in Settings (Pedal role) and save.',
+    "{a} et {b} ont le même rôle ({r}) : change le rôle de l'une dans Réglages.":
+        '{a} and {b} have the same role ({r}): change the role of one of them in Settings.',
+    "Récepteur introuvable sur {p} ({e}) : branche sa prise UART (pas la prise USB), ferme SimHub, et vérifie qu'il est flashé avec le firmware « Récepteur sans fil ».":
+        'Receiver not found on {p} ({e}): plug in its UART socket (not the USB one), close SimHub, and check it is flashed with the "Wireless receiver" firmware.',
+    'Récepteur trouvé : {m}.':
+        'Receiver found: {m}.',
+    'Enregistrer cette table dans le récepteur et dans {n} pédale(s), sur le canal {c} ?':
+        'Save this table to the receiver and to {n} pedal(s), on channel {c}?',
+    "✖ Le récepteur n'a pas confirmé ({e}). Les pédales ont reçu la table ; rebranche la prise UART du récepteur et recommence.":
+        "✖ The receiver did not confirm ({e}). The pedals received the table; replug the receiver's UART socket and try again.",
+    '✔ Appairage enregistré (canal {c}). Branche maintenant le récepteur par sa prise USB ; les câbles des pédales peuvent être retirés.':
+        '✔ Pairing saved (channel {c}). Now plug the receiver in through its USB socket; the pedal cables can be removed.',
+    "table d'appairage sans fil enregistrée":
+        'wireless pairing table saved',
+    'Sans fil':
+        'Wireless',
 }

@@ -367,3 +367,60 @@ def test_signaux_abz(qapp):
         tab._abz({"axis0.encoder.shadow_count": str(cnt), "axis.zhits": str(zh)})
     assert "↑" in tab.s["ab"].v.text() and "(1)" in tab.s["z"].v.text()      # nouvelle impulsion vue
     assert tab.s["z_gap"].v.text() == "10000" and tab.s["z_ratio"].v.text() == "4.50"
+
+
+# ---------------------------------------------------------------- appairage sans fil
+def test_trame_appairage_aller_retour():
+    macs = [bytes(6), bytes((1, 2, 3, 4, 5, 6)), None, bytes((9, 9, 9, 9, 9, 9))]
+    (f,) = PP.Parser().feed(PP.build_mac(macs, 6, True))
+    assert (f.ptype, f.version, f.store) == (PP.T_MAC, PP.MAC_VERSION, 1)
+    assert f.data["macs"][1] == macs[1] and f.data["macs"][3] == macs[3] and f.data["channel"] == 6
+    assert f.data["assigned"] == [0, 1, 0, 1]
+    assert len(PP.build_mac()) == 6 + 38 + 4            # sizeof(DapMacAddresses_t)
+
+
+def test_table_appairage_fusion():
+    from simforge.tab_pedal_wireless import merge_table
+    z, br, fr, ac, old = bytes(6), bytes([3] * 6), bytes([1] * 6), bytes([2] * 6), bytes([7] * 6)
+    bridge = {"macs": [old, z, z, z], "own": br, "node": 3, "channel": 11}
+    brake = {"macs": [z] * 4, "own": fr, "node": 1, "channel": 11}
+    macs, err = merge_table({"COM8": brake}, bridge)
+    assert not err and macs == [old, fr, z, br]          # embrayage déjà appairé conservé
+    # la pédale a changé de rôle : son ancienne case est vidée
+    macs, err = merge_table({"COM8": dict(brake, node=2)}, dict(bridge, macs=[z, fr, z, z]))
+    assert macs == [z, z, fr, br]
+    assert merge_table({"COM8": brake, "COM9": dict(brake, own=ac)}, bridge)[1]       # deux fois le même rôle
+    assert merge_table({"COM8": brake}, None)[1]                                      # récepteur inconnu
+    assert merge_table({"COM8": dict(brake, node=4)}, bridge)[1]                      # pédale sans rôle
+
+
+def test_appairage_de_bout_en_bout_en_demo(qapp, monkeypatch):
+    """Détecter puis Appairer : pédales et récepteur simulés reçoivent la même table, et une trame d'appairage
+    (version 1) ne fait pas passer la pédale pour « firmware incompatible »."""
+    import time as _t
+    from simforge import tab_pedal_wireless as W
+    from simforge.ped_device import PedalManager, FakeBridgePort
+    monkeypatch.setattr(W.QMessageBox, "question", lambda *a, **k: W.QMessageBox.Yes)
+    FakeBridgePort.table = ([bytes(6)] * 4, 11)
+    mgr = PedalManager(demo=True)
+    tab = W.WirelessTab(mgr)
+    mgr.start()
+
+    def wait(cond, s=6):
+        end = _t.monotonic() + s
+        while _t.monotonic() < end and not cond():
+            qapp.processEvents()
+            _t.sleep(0.02)
+        return cond()
+
+    assert wait(lambda: len(mgr.pedals()) == 2)
+    tab.detect()
+    assert wait(lambda: len(tab.ped) == 2 and tab.bridge is not None)
+    tab.ch.setValue(6)
+    tab.pair()
+    assert wait(lambda: FakeBridgePort.table[1] == 6 and not tab.busy)
+    macs = FakeBridgePort.table[0]
+    assert macs[3] == FakeBridgePort.own_mac and any(macs[1]) and any(macs[2]) and not any(macs[0])
+    assert wait(lambda: all(t["macs"] == macs and t["channel"] == 6 for t in tab.ped.values()))
+    assert not any(p.incompatible for p in mgr.pedals())
+    mgr.stop()

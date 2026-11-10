@@ -28,6 +28,9 @@ SOF = b"\xAA\x55"
 EOF_ = b"\xAA\x56"
 T_CONFIG, T_ACTION, T_STATE, T_STATE_EXT = 100, 110, 120, 130
 T_BRIDGE_STATE = 210
+T_MAC = 190                 # table d'appairage ESP-NOW (PayloadMacAddresses.h), sa propre version de trame
+MAC_VERSION = 1
+N_BRIDGE = 3                # cases de la table : 0 embrayage, 1 frein, 2 accélérateur, 3 récepteur
 
 HEADER = struct.Struct("<BBBBBB")
 FOOTER = struct.Struct("<HBB")
@@ -41,7 +44,10 @@ CONFIG_S = struct.Struct(_fmt(CONFIG_FIELDS))
 STATE_S = struct.Struct(_fmt(STATE_BASIC_FIELDS))
 STATE_EXT_S = struct.Struct(_fmt(STATE_EXT_FIELDS))
 ACTION_S = struct.Struct(_fmt(ACTION_FIELDS))
-SIZES = {T_CONFIG: CONFIG_S.size, T_ACTION: ACTION_S.size, T_STATE: STATE_S.size, T_STATE_EXT: STATE_EXT_S.size}
+# assignmentState[4], mac[4][6], ownMac[6], ownNodeType, wifiChannel, reserved[2]
+MAC_S = struct.Struct("<4B24s6sBB2x")
+SIZES = {T_CONFIG: CONFIG_S.size, T_ACTION: ACTION_S.size, T_STATE: STATE_S.size, T_STATE_EXT: STATE_EXT_S.size,
+         T_MAC: MAC_S.size}
 FRAME_SIZES = {k: HEADER.size + v + FOOTER.size for k, v in SIZES.items()}
 CONFIG_NAMES = [n for n, _t, _c in CONFIG_FIELDS]
 
@@ -140,7 +146,9 @@ class Parser:
             del self.buf[:size]
             payload = pkt[6:size - 4]
             data = {}
-            if version == VERSION:
+            if ptype == T_MAC:
+                data = unpack_mac(payload) if version == MAC_VERSION else {}
+            elif version == VERSION:
                 if ptype == T_CONFIG:
                     data = _unpack(CONFIG_FIELDS, CONFIG_S, payload)
                 elif ptype == T_STATE:
@@ -167,6 +175,24 @@ class Parser:
                 self.lines.append(s)
         if len(self.text) > 600:
             self.text.clear()
+
+
+def unpack_mac(payload: bytes) -> dict:
+    v = MAC_S.unpack(payload)
+    return {"assigned": list(v[0:4]), "macs": [v[4][i * 6:i * 6 + 6] for i in range(4)], "own": v[5],
+            "node": v[6], "channel": v[7]}
+
+
+def build_mac(macs=None, channel=11, store=False) -> bytes:
+    """Table d'appairage. Sans « store » (table vide) : simple question, l'appareil répond avec sa table, sa propre
+    adresse et son rôle. Avec « store » : l'appareil l'enregistre et l'applique."""
+    macs = [bytes(m or b"") if m and any(m) else bytes(6) for m in (macs or [None] * 4)]
+    payload = MAC_S.pack(*[1 if any(m) else 0 for m in macs], b"".join(macs), bytes(6), 0, channel if store else 0)
+    return frame(T_MAC, payload, store, 0, MAC_VERSION)
+
+
+def mac_text(m) -> str:
+    return ":".join(f"{b:02X}" for b in m) if m and any(m) else "—"
 
 
 def build_config(cfg: dict, store=False, tag=0) -> bytes:

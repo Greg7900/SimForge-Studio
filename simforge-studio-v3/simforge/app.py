@@ -19,6 +19,7 @@ from .ped_device import PedalManager
 from .tab_overview import OverviewTab
 from .tab_pedals import PedalsTab
 from .tab_pedal_fw import PedalFirmwareTab
+from .tab_pedal_wireless import WirelessTab
 from .sdl_input import SdlInput
 from .tab_console import ConsoleTab
 from .tab_encoder import EncoderTab
@@ -202,6 +203,7 @@ class MainWindow(QMainWindow):
         self.overview = OverviewTab(self.b, self.pm)
         self.ped = PedalsTab(self.pm)
         self.ped_fw = PedalFirmwareTab(self.pm)
+        self.ped_wl = WirelessTab(self.pm)
         self.journal = QPlainTextEdit()
         self.journal.setObjectName("console")
         self.journal.setReadOnly(True)
@@ -224,6 +226,7 @@ class MainWindow(QMainWindow):
             (T("PÉDALES"), None, None, None),
             ("p", "p_settings", T("Réglages"), self.ped),
             ("p", "p_fw", T("Firmware"), self.ped_fw),
+            ("p", "p_wireless", T("Sans fil"), self.ped_wl),
             (T("OUTILS"), None, None, None),
             ("t", "t_joy", "Joy tester", self.joy),
             ("t", "t_overlay", "Overlay", self.overlay),

@@ -36,6 +36,35 @@ def new_ext_acc():
     return {"n": 0, "osc": 0, "r": 0.0, "rr": 0.0}
 
 
+class FakeBridgePort:
+    """Récepteur sans fil simulé : répond seulement aux trames d'appairage."""
+    table = ([bytes(6)] * 4, 11)                 # gardée entre deux ouvertures, comme l'EEPROM
+    own_mac = bytes((0x34, 0x85, 0x18, 0xBB, 0x00, 0x03))
+
+    def __init__(self):
+        self.parser = PP.Parser()
+        self.out = bytearray(b"[L]Bridge ready\r\n")
+
+    def read(self):
+        time.sleep(0.005)
+        b = bytes(self.out)
+        self.out.clear()
+        return b
+
+    def write(self, b):
+        for f in self.parser.feed(b):
+            if f.ptype == PP.T_MAC:
+                if f.store and f.data:
+                    FakeBridgePort.table = (list(f.data["macs"]), f.data["channel"])
+                macs, ch = FakeBridgePort.table
+                payload = PP.MAC_S.pack(*[1 if any(m) else 0 for m in macs], b"".join(macs), self.own_mac,
+                                        PP.N_BRIDGE, ch)
+                self.out += PP.frame(PP.T_MAC, payload, 0, 0, PP.MAC_VERSION)
+
+    def close(self):
+        pass
+
+
 class PedalInfo:
     def __init__(self, port):
         self.port = port
@@ -43,6 +72,7 @@ class PedalInfo:
         self.version = None
         self.fw = None
         self.fw_v = None            # version brute (3 nombres)
+        self.mac = None             # dernière table d'appairage reçue (PP.unpack_mac)
         self.state = None
         self.config = None
         self.ext = None             # dernier état détaillé (debugFlags0 bit 64), pour le diagnostic du servo
@@ -98,6 +128,8 @@ class FakePedalPort:
 
     def __init__(self, tag):
         self.tag = tag
+        self.own_mac = bytes((0x34, 0x85, 0x18, 0xAA, 0x00, tag))
+        self.mac_table = ([bytes(6)] * 4, 11)
         self.cfg = PP.default_config()
         self.cfg["pedalType_u8"] = tag
         self.out = bytearray()
@@ -137,8 +169,19 @@ class FakePedalPort:
         self.out.clear()
         return b
 
+    def _mac_reply(self, f, node):
+        if f.store and f.data:
+            self.mac_table = (list(f.data["macs"]), f.data["channel"])
+            self.out += b"[MAC] Stored & Applied MAC Addresses table via Serial COM.\r\n"
+        macs, ch = self.mac_table
+        payload = PP.MAC_S.pack(*[1 if any(m) else 0 for m in macs], b"".join(macs), self.own_mac, node, ch)
+        self.out += PP.frame(PP.T_MAC, payload, 0, node, PP.MAC_VERSION)
+
     def write(self, b):
         for f in self.parser.feed(b):
+            if f.ptype == PP.T_MAC:
+                self._mac_reply(f, self.tag)
+                continue
             if f.ptype == PP.T_ACTION:
                 a = PP._unpack(PP.ACTION_FIELDS, PP.ACTION_S, f.raw[6:-4])
                 if a["returnPedalConfig_u8"]:
@@ -209,6 +252,11 @@ class PedalLink(QThread):
                 if data:
                     for fr in self.parser.feed(data):
                         info.last_rx = now
+                        if fr.ptype == PP.T_MAC:            # sa propre version de trame : avant le contrôle de version
+                            if fr.data:
+                                info.mac = fr.data
+                                mgr.mac_read.emit(info.port, dict(fr.data))
+                            continue
                         info.version = fr.version
                         if fr.version != PP.VERSION:
                             if not info.incompatible:
@@ -289,6 +337,7 @@ class PedalManager(QObject):
     states = Signal(list)                    # [(port, t, état)]
     config_read = Signal(str, dict)
     text = Signal(str, str)                  # (port, ligne texte du firmware)
+    mac_read = Signal(str, dict)             # (port, table d'appairage sans fil)
     log = Signal(str, str)
     _probe_sig = Signal(object, bool)        # interne : résultats des threads ramenés dans le thread IHM
     _lost_sig = Signal(object)
@@ -434,6 +483,50 @@ class PedalManager(QObject):
         if reread:
             QTimer.singleShot(1600 if clear_alarms else 400, lambda: self.request_config(port))
         return ""
+
+    def bridge_ports(self):
+        """Ports série qui ne sont pas une pédale connectée : candidats pour le récepteur (sa prise UART)."""
+        if self.demo:
+            return ["DEMO-RECEPTEUR"]
+        if serial is None:
+            return []
+        return [p.device for p in serial.tools.list_ports.comports()
+                if p.vid is not None and (p.vid, p.pid) in CANDIDATE_VIDPID and p.device not in self.links]
+
+    def bridge_exchange(self, port, frame_bytes, wait=1.5):
+        """Ouvre le port du récepteur le temps d'un échange : envoie la trame, renvoie (table reçue ou None, erreur).
+        Bloquant (≈ wait s) : à lancer hors du thread de l'interface."""
+        self.paused.add(port)
+        l = self.probing.get(port)
+        if l:
+            l.stop()
+            l.wait(800)
+        dev = None
+        try:
+            dev = FakeBridgePort() if self.demo else SerialPort(port, PP.BAUD)
+            parser, got = PP.Parser(), None
+            t_end = time.perf_counter() + wait
+            t_send = 0.0
+            while time.perf_counter() < t_end and got is None:
+                if time.perf_counter() - t_send > 0.5:          # renvoyée : le port vient de s'ouvrir
+                    dev.write(frame_bytes)
+                    t_send = time.perf_counter()
+                for fr in parser.feed(dev.read() or b""):
+                    if fr.ptype == PP.T_MAC and fr.data:
+                        got = fr.data
+            return got, ("" if got else T("pas de réponse"))
+        except Exception as e:
+            return None, str(e)
+        finally:
+            if dev:
+                dev.close()
+            self.paused.discard(port)
+
+    def send_mac(self, port, macs=None, channel=11, store=False):
+        """Sans fil : demande la table d'appairage de la pédale (store=False) ou lui en enregistre une."""
+        l = self.links.get(port)
+        if l:
+            l.send(PP.build_mac(macs, channel, store), T("table d'appairage sans fil enregistrée") if store else "")
 
     def action(self, port, what="", **kw):
         l = self.links.get(port)

@@ -3,7 +3,7 @@
     python tools/capture_demo.py p_settings capture.png          # page Pédales › Réglages, en français
     python tools/capture_demo.py w_settings capture.png --lang en
 
-Clés de page : overview, w_setup, w_settings, w_monitor, w_encoder, w_force, p_settings, p_fw,
+Clés de page : overview, w_setup, w_settings, w_monitor, w_encoder, w_force, p_settings, p_fw, p_wireless,
 t_joy, t_overlay, t_console, t_log (voir le menu dans simforge/app.py).
 Sert à vérifier une page modifiée sans volant ni pédales branchés.
 """
