@@ -9,7 +9,12 @@ import sys
 from pathlib import Path
 
 HERE = Path(getattr(sys, "_MEIPASS", Path(__file__).parent))
-LOG = (Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent) / "errors.log"
+if getattr(sys, "frozen", False):      # installé (Program Files, non inscriptible) : journaux dans le profil
+    _LOGDIR = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "SimForge Studio"
+    _LOGDIR.mkdir(parents=True, exist_ok=True)
+else:
+    _LOGDIR = Path(__file__).parent
+LOG = _LOGDIR / "errors.log"
 
 
 def _install_crash_handler():

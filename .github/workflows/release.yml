@@ -1,0 +1,44 @@
+# Construit l'installeur Windows. Étiquette « v3.1.0 » poussée : publié dans les Releases GitHub.
+# Lancé à la main (onglet Actions) : installeur d'essai en pièce jointe du lancement, sans publication.
+name: Installeur Windows
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Dépendances et tests
+        run: |
+          pip install -r simforge-studio-v3/requirements.txt pyinstaller pytest
+          python -m pytest tests -q
+      - name: Exécutable (PyInstaller)
+        working-directory: simforge-studio-v3
+        run: >
+          python -m PyInstaller --noconfirm --windowed --name "SimForge Studio V3"
+          --icon simforge_studio.ico --add-data "simforge_studio.png;." --add-data "firmware;firmware"
+          --collect-all sdl2dll --collect-all esptool --hidden-import hid
+          --hidden-import serial.tools.list_ports simforge_studio.py
+      - name: Installeur (Inno Setup)
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          $v = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}".TrimStart("v") } else { "0.0.${{ github.run_number }}" }
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVer=$v" installer\simforge.iss
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SimForge-Studio-Setup
+          path: dist/SimForge-Studio-Setup-*.exe
+      - name: Publication
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: gh release create "${{ github.ref_name }}" (Get-Item dist/SimForge-Studio-Setup-*.exe).FullName --generate-notes
