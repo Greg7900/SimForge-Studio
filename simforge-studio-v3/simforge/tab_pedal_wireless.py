@@ -48,6 +48,7 @@ def merge_table(pedals: dict, bridge: dict | None):
 
 class WirelessTab(QWidget):
     _bridge_done = Signal(object, str, bool)        # (table ou None, erreur, était-ce un enregistrement)
+    _boot_done = Signal(str, str)
 
     def __init__(self, mgr, parent=None):
         super().__init__(parent)
@@ -108,9 +109,14 @@ class WirelessTab(QWidget):
         self.b_pair = QPushButton(T("Appairer"))
         self.b_pair.setObjectName("primary")
         self.b_pair.clicked.connect(self.pair)
+        self.b_boot = QPushButton(T("Journal de démarrage"))
+        self.b_boot.setToolTip(T("Redémarre la carte branchée sur ce port et affiche ce qu'elle écrit en démarrant : "
+                                 "sert à comprendre une carte qui ne répond pas (firmware qui ne démarre pas)."))
+        self.b_boot.clicked.connect(self.boot_log)
         r.addWidget(self.b_detect)
         r.addWidget(self.b_pair)
         r.addStretch()
+        r.addWidget(self.b_boot)
         l.addLayout(r)
         self.res = QLabel("")
         self.res.setWordWrap(True)
@@ -126,6 +132,7 @@ class WirelessTab(QWidget):
         self.m.text.connect(self._on_text)
         self.m.changed.connect(self._ports)
         self._bridge_done.connect(self._on_bridge)
+        self._boot_done.connect(self._on_boot)
         self._ports()
 
     def showEvent(self, e):
@@ -180,13 +187,34 @@ class WirelessTab(QWidget):
             self._bridge_done.emit(None, T("aucun port choisi"), store)
             return
         self.busy = True
-        self.b_detect.setEnabled(False)
-        self.b_pair.setEnabled(False)
+        for b in (self.b_detect, self.b_pair, self.b_boot):
+            b.setEnabled(False)
 
         def work():
             got, err = self.m.bridge_exchange(port, frame)
             self._bridge_done.emit(got, err, store)
         threading.Thread(target=work, daemon=True).start()
+
+    def boot_log(self):
+        port = self.port_cb.currentData()
+        if not port or self.busy:
+            return
+        self.busy = True
+        for b in (self.b_detect, self.b_pair, self.b_boot):
+            b.setEnabled(False)
+        self._say(T("Redémarrage de la carte sur {p}…").format(p=port))
+        threading.Thread(target=lambda: self._boot_done.emit(*self.m.boot_log(port)), daemon=True).start()
+
+    def _on_boot(self, text, err):
+        self.busy = False
+        for b in (self.b_detect, self.b_pair, self.b_boot):
+            b.setEnabled(True)
+        if err:
+            self._say(T("Lecture impossible : {e}").format(e=err), "bad")
+            return
+        self.log.appendPlainText("-" * 60 + "\n" + (text or T("(rien reçu)")) + "\n" + "-" * 60)
+        self.res.setText(T("Journal de démarrage affiché ci-dessous."))
+        self.res.setStyleSheet("")
 
     def detect(self):
         self.ped = {}
@@ -197,8 +225,8 @@ class WirelessTab(QWidget):
 
     def _on_bridge(self, got, err, store):
         self.busy = False
-        self.b_detect.setEnabled(True)
-        self.b_pair.setEnabled(True)
+        for b in (self.b_detect, self.b_pair, self.b_boot):
+            b.setEnabled(True)
         if got is not None:
             self.bridge = got
         self._show()

@@ -2188,4 +2188,16 @@ EN = {
         'nothing received',
     '{n} octets reçus, dernier message : « {m} »':
         '{n} bytes received, last message: "{m}"',
+    'Journal de démarrage':
+        'Boot log',
+    "Redémarre la carte branchée sur ce port et affiche ce qu'elle écrit en démarrant : sert à comprendre une carte qui ne répond pas (firmware qui ne démarre pas).":
+        'Restarts the board plugged into this port and shows what it prints while booting: helps understand a board that does not answer (firmware that does not start).',
+    'Redémarrage de la carte sur {p}…':
+        'Restarting the board on {p}…',
+    'Lecture impossible : {e}':
+        'Cannot read: {e}',
+    '(rien reçu)':
+        '(nothing received)',
+    'Journal de démarrage affiché ci-dessous.':
+        'Boot log shown below.',
 }

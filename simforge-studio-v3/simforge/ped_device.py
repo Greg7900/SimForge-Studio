@@ -533,6 +533,43 @@ class PedalManager(QObject):
                 dev.close()
             self.paused.discard(port)
 
+    def boot_log(self, port, seconds=3.0):
+        """Redémarre l'ESP32 par la puce série (RTS = broche EN) et renvoie ce qu'il écrit au démarrage, lu à
+        115200 bauds : le programme d'amorçage de la puce y dit pourquoi un firmware ne démarre pas. Bloquant."""
+        if self.demo:
+            return "ESP-ROM:esp32s3-20210327\nrst:0x1 (POWERON),boot:0x8 (SPI_FAST_FLASH_BOOT)\nentry 0x403c98d0", ""
+        self.paused.add(port)
+        l = self.probing.get(port)
+        if l:
+            l.stop()
+            l.wait(800)
+        s = None
+        try:
+            s = serial.Serial()
+            s.port, s.baudrate, s.timeout = port, 115200, 0.05
+            s.dtr = False
+            s.rts = False
+            s.open()
+            s.rts = True                # EN à 0 : reset
+            time.sleep(0.15)
+            s.reset_input_buffer()
+            s.rts = False
+            buf = bytearray()
+            t_end = time.perf_counter() + seconds
+            while time.perf_counter() < t_end:
+                buf += s.read(4096)
+            text = buf.translate(None, PP._NOT_TEXT).decode("ascii", "replace")
+            return "\n".join(ln.rstrip() for ln in text.splitlines() if ln.strip()), ""
+        except Exception as e:
+            return "", str(e)
+        finally:
+            if s:
+                try:
+                    s.close()
+                except Exception:
+                    pass
+            self.paused.discard(port)
+
     def send_mac(self, port, macs=None, channel=11, store=False):
         """Sans fil : demande la table d'appairage de la pédale (store=False) ou lui en enregistre une."""
         l = self.links.get(port)
