@@ -402,6 +402,8 @@ class WirelessPedal:
         self.info = PedalInfo(f"{WL_PORT}{tag}")
         self.info.tag = tag
         self.n_states = 0
+        self.want_cfg = True            # configuration demandée et pas encore reçue
+        self.t_req = 0.0
 
     def send(self, data: bytes, what=""):
         self.bridge.q.put((data, what and f"→ {self.info.name} : {what}"))
@@ -487,7 +489,6 @@ class BridgeLink(QThread):
                         if sub is None:
                             sub = self.subs[fr.tag] = WirelessPedal(self, fr.tag)
                             mgr._probe_done(sub, True)
-                            sub.send(PP.build_action(tag=fr.tag, returnPedalConfig_u8=1))
                         info = sub.info
                         info.last_rx, info.version, info.state = now, fr.version, fr.data
                         info.fw_v = tuple(fr.data["pedalFirmwareVersion_au8"])
@@ -505,6 +506,7 @@ class BridgeLink(QThread):
                         a["r"] += raw
                         a["rr"] += raw * raw
                     elif sub is not None and fr.ptype == PP.T_CONFIG and fr.data:
+                        sub.want_cfg = False
                         sub.info.config = fr.data
                         mgr.config_read.emit(sub.info.port, dict(fr.data))
                 parser.lines.clear()
@@ -513,6 +515,12 @@ class BridgeLink(QThread):
                         sub.info.rate = sub.n_states / (now - t_rate)
                         sub.n_states = 0
                     t_rate = now
+                # demande de configuration répétée jusqu'à la réponse : par radio, le récepteur peut sauter une
+                # action sans la renvoyer (envoi « occupé »), et la demande se perdait
+                for tag, sub in self.subs.items():
+                    if sub.want_cfg and now - sub.t_req > 1.0:
+                        sub.t_req = now
+                        self.q.put((PP.build_action(tag=tag, returnPedalConfig_u8=1), ""))
                 for tag in [t for t, s in self.subs.items() if now - s.info.last_rx > 3.0]:
                     self._drop(tag)                 # pédale éteinte ou hors de portée
         finally:
@@ -671,7 +679,9 @@ class PedalManager(QObject):
 
     def request_config(self, port):
         l = self.links.get(port)
-        if l:
+        if isinstance(l, WirelessPedal):
+            l.want_cfg = True               # demandée (et redemandée) par la liaison du récepteur
+        elif l:
             l.send(PP.build_action(tag=l.info.tag or 0, returnPedalConfig_u8=1))
 
     def send_config(self, port, cfg: dict, store: bool, clear_alarms=False, reread=True):

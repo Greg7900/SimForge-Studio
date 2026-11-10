@@ -483,7 +483,8 @@ def test_pedales_sans_fil_par_le_recepteur(qapp):
 
         def write(self, b):
             self.written.append(b)
-            self.fake.write(b)
+            if len(self.written) > 1:            # la 1re demande se perd par radio : elle doit être répétée
+                self.fake.write(b)
 
         def close(self):
             pass
